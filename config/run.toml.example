@@ -1,0 +1,5 @@
+# Directory containing OVMF_CODE.fd and OVMF_VARS.fd
+ovmf-dir = "/usr/share/edk2-ovmf/"
+
+# Extra arguments for QEMU
+qemu-args = ["-no-reboot"]

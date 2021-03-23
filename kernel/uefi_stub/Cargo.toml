@@ -1,0 +1,13 @@
+[package]
+name = "uefi_stub"
+version = "0.1.0"
+authors = ["Han Mertens <hanmertens@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+common = { path = "../common" }
+log = "0.4"
+uefi = "0.8"
+uefi-services = "0.5"
+x86_64 = "0.13"
+xmas-elf = "0.7"

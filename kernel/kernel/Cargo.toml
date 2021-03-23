@@ -1,0 +1,9 @@
+[package]
+name = "kernel"
+version = "0.1.0"
+authors = ["Han Mertens <hanmertens@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+common = { path = "../common" }
+uefi = "0.8"
