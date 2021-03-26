@@ -6,4 +6,7 @@ edition = "2018"
 
 [dependencies]
 common = { path = "../common" }
+spin = { version = "0.9", default-features = false, features = ["spin_mutex"] }
+uart_16550 = "0.2"
 uefi = "0.8"
+x86_64 = "0.13"

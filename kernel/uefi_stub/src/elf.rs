@@ -98,7 +98,8 @@ impl<'a> ElfInfo<'a> {
                 PhysFrame::containing_address(phys_end),
             )) {
                 log::debug!("        Mapping {:?} to {:?}", page, frame);
-                unsafe { map.map_to(page, frame, PageTableFlags::PRESENT, all) }
+                let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+                unsafe { map.map_to(page, frame, flags, all) }
                     .map_err(|e| {
                         log::error!("{:?}", e);
                         "Mapping error"
