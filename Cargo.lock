@@ -36,6 +36,8 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "log",
+ "owo-colors",
  "spin",
  "uart_16550",
  "uefi",
@@ -53,6 +55,7 @@ name = "kernel"
 version = "0.1.0"
 dependencies = [
  "common",
+ "log",
  "uefi",
  "x86_64",
 ]
@@ -65,6 +68,12 @@ checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "owo-colors"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f27ef240f1cbbcdc0774a634db63dde96db624aa010aceebccc2bb8a9a0cb67"
 
 [[package]]
 name = "proc-macro2"
@@ -190,25 +199,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "uefi-services"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03df29f1a75c0b92df0b701f815fa3e66a25cb510f99a8d59f720b289ed94a3d"
-dependencies = [
- "cfg-if",
- "log",
- "uefi",
- "x86_64",
-]
-
-[[package]]
 name = "uefi_stub"
 version = "0.1.0"
 dependencies = [
  "common",
  "log",
  "uefi",
- "uefi-services",
  "x86_64",
  "xmas-elf",
 ]

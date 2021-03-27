@@ -6,14 +6,13 @@ use common::{
     println,
 };
 use core::panic::PanicInfo;
-use x86_64::instructions;
+use log::LevelFilter;
 
 // Type-check of kernel entry point
 const _: KernelMain = _start;
 
 fn init() {
-    common::init();
-    println!();
+    common::init(LevelFilter::Trace).unwrap();
 }
 
 /// Kernel entry point
@@ -21,17 +20,16 @@ fn init() {
 pub unsafe extern "C" fn _start(_boot: &'static BootInfo) -> ! {
     init();
 
-    println!("ÅngstrÖS v{}", env!("CARGO_PKG_VERSION"));
+    println!();
+    println!("== ÅngstrÖS v{} ==", env!("CARGO_PKG_VERSION"));
+    println!();
+
+    log::info!("Boot complete");
 
     panic!("The kernel is still young; there's nothing more to do!");
 }
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!();
-    println!("Panic in the kernel!");
-    println!("{:#?}", info);
-    loop {
-        instructions::hlt();
-    }
+    common::panic_handler(info);
 }

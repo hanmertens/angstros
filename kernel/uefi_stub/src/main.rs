@@ -10,8 +10,9 @@ use common::{
     boot::{offset, BootInfo},
     println,
 };
-use core::{fmt::Write, mem, slice};
+use core::{mem, panic::PanicInfo, slice};
 use elf::Elf;
+use log::LevelFilter;
 use uefi::{prelude::*, table::runtime::ResetType, Handle};
 use x86_64::{
     registers::control::Cr3,
@@ -39,15 +40,15 @@ struct Setup {
 }
 
 fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
-    uefi_services::init(system_table)
-        .log_warning()
-        .map_err(|_| "Could not initialize UEFI services")?;
-
-    log::set_max_level(log::LevelFilter::Trace);
+    common::init(LevelFilter::Trace)?;
 
     // Reset UEFI text and background colors and print newline
     println!("\x1b[0m");
-    println!("ÅngstrÖS UEFI boot stub v{}", env!("CARGO_PKG_VERSION"));
+    println!(
+        "== ÅngstrÖS UEFI boot stub v{} ==",
+        env!("CARGO_PKG_VERSION")
+    );
+    println!();
 
     let boot_serv = system_table.boot_services();
     let mut boot_alloc = BootAllocator::new(&boot_serv);
@@ -76,7 +77,7 @@ fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
     let addr = PhysAddr::new(VirtAddr::from_ptr(switch_to_kernel as *const ()).as_u64());
     let frame = PhysFrame::<Size4KiB>::containing_address(addr);
     for frame in PhysFrame::range_inclusive(frame, frame + 1) {
-        log::debug!("    Identity mapping {:?} to be sure", frame);
+        log::debug!("Identity mapping {:?} to be sure", frame);
         unsafe { offset_kpt.identity_map(frame, PageTableFlags::PRESENT, &mut boot_alloc) }
             .map_err(|_| "Mapping error")?
             .ignore();
@@ -99,8 +100,6 @@ fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
         unsafe { slice::from_raw_parts_mut(mmap_ptr, mmap_size) }
     };
 
-    log::info!("Setup done; exiting boot services and switching to kernel");
-
     Ok(Setup {
         kernel_page_table,
         stack,
@@ -115,10 +114,12 @@ fn efi_main(image_handler: Handle, system_table: SystemTable<Boot>) -> Status {
     let setup = match setup_boot(&system_table) {
         Ok(s) => s,
         Err(s) => {
-            let _ = writeln!(system_table.stdout(), "{}", s);
+            log::error!("{}", s);
             shutdown(system_table);
         }
     };
+
+    log::info!("Exiting boot services and performing final setup");
 
     let (uefi_system_table, mmap_iter) = system_table
         .exit_boot_services(image_handler, setup.mmap)?
@@ -139,6 +140,8 @@ fn efi_main(image_handler: Handle, system_table: SystemTable<Boot>) -> Status {
         })
     };
 
+    log::info!("Switching to kernel");
+
     switch_to_kernel(setup);
 }
 
@@ -154,4 +157,9 @@ fn switch_to_kernel(setup: Setup) -> ! {
             options(noreturn)
         );
     }
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    common::panic_handler(info);
 }
