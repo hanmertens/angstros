@@ -1,3 +1,5 @@
+//! Serial I/O port
+
 use core::fmt::{Arguments, Write};
 use spin::Mutex;
 use uart_16550::SerialPort;

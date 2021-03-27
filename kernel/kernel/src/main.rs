@@ -1,10 +1,10 @@
 #![no_std]
 #![no_main]
 
-#[macro_use]
-mod serial;
-
-use common::boot::{BootInfo, KernelMain};
+use common::{
+    boot::{BootInfo, KernelMain},
+    println,
+};
 use core::panic::PanicInfo;
 use x86_64::instructions;
 
@@ -12,9 +12,8 @@ use x86_64::instructions;
 const _: KernelMain = _start;
 
 fn init() {
-    serial::init();
-    // Reset UEFI text and background colors and print newline
-    println!("\x1b[0m");
+    common::init();
+    println!();
 }
 
 /// Kernel entry point

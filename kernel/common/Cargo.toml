@@ -6,4 +6,6 @@ edition = "2018"
 
 [dependencies]
 uefi = "0.8"
+spin = { version = "0.9", default-features = false, features = ["spin_mutex"] }
+uart_16550 = "0.2"
 x86_64 = "0.13"

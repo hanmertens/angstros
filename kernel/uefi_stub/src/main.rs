@@ -6,7 +6,10 @@ mod allocator;
 mod elf;
 
 use allocator::BootAllocator;
-use common::boot::{offset, BootInfo};
+use common::{
+    boot::{offset, BootInfo},
+    println,
+};
 use core::{fmt::Write, mem, slice};
 use elf::Elf;
 use uefi::{prelude::*, table::runtime::ResetType, Handle};
@@ -42,13 +45,10 @@ fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
 
     log::set_max_level(log::LevelFilter::Trace);
 
-    let stdout = system_table.stdout();
-    writeln!(
-        stdout,
-        "ÅngstrÖS UEFI boot stub v{}",
-        env!("CARGO_PKG_VERSION")
-    )
-    .map_err(|_| "Standard output not working")?;
+    // Reset UEFI text and background colors and print newline
+    println!("\x1b[0m");
+    println!("ÅngstrÖS UEFI boot stub v{}", env!("CARGO_PKG_VERSION"));
+
     let boot_serv = system_table.boot_services();
     let mut boot_alloc = BootAllocator::new(&boot_serv);
 
