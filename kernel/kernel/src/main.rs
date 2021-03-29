@@ -1,5 +1,8 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
+
+mod interrupts;
 
 use common::{
     boot::{BootInfo, KernelMain},
@@ -13,6 +16,7 @@ const _: KernelMain = _start;
 
 fn init() {
     common::init(LevelFilter::Trace).unwrap();
+    interrupts::init();
 }
 
 /// Kernel entry point
