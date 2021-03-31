@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
+#![feature(abi_x86_interrupt, asm)]
 
 mod interrupts;
 
@@ -10,6 +10,7 @@ use common::{
 };
 use core::panic::PanicInfo;
 use log::LevelFilter;
+use x86_64::instructions;
 
 // Type-check of kernel entry point
 const _: KernelMain = _start;
@@ -30,7 +31,14 @@ pub unsafe extern "C" fn _start(_boot: &'static BootInfo) -> ! {
 
     log::info!("Boot complete");
 
-    panic!("The kernel is still young; there's nothing more to do!");
+    instructions::interrupts::int3();
+
+    log::info!("Breakpoint survived...");
+
+    loop {
+        log::info!("Going to halt...");
+        instructions::hlt();
+    }
 }
 
 #[panic_handler]

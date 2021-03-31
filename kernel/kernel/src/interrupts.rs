@@ -32,6 +32,7 @@ mod gdt {
     /// This includes, specifically:
     /// - Set up double fault stack in task state segment
     /// - Initialize and load global descriptor table
+    /// - Reset nonsensical segment registers
     /// - Set up code and task state segment selectors
     pub fn init() {
         let tss = TSS.call_once(|| {
@@ -57,6 +58,10 @@ mod gdt {
                 tss_selector,
             }
         });
+
+        // Reset segment register if set by UEFI firmware
+        unsafe { asm!("mov ss, {:r}", in(reg) 0) };
+
         gdt.gdt.load();
         unsafe {
             segmentation::set_cs(gdt.code_selector);
@@ -69,10 +74,6 @@ static IDT: Once<InterruptDescriptorTable> = Once::new();
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
     log::warn!("Breakpoint in {:#?}", stack_frame);
-
-    // It should be possible to remove this panic, but then we get a general
-    // protection fault resulting in a double fault...
-    panic!("breakpoint");
 }
 
 extern "x86-interrupt" fn page_fault_handler(
