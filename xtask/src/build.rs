@@ -1,12 +1,19 @@
-use crate::{command::Cargo, config::BuildInfo};
+use crate::{
+    command::Cargo,
+    config::{BuildInfo, RunInfo},
+};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-pub fn build(info: &BuildInfo) -> Result<()> {
+pub fn build(info: &BuildInfo) -> Result<RunInfo> {
     let kernel = build_kernel(info)?;
-    let stub = build_stub(&kernel)?;
-    build_efidir(info, &stub)?;
-    Ok(())
+    let efi_stub = build_stub(&kernel)?;
+    build_efidir(info, &efi_stub)?;
+    Ok(RunInfo {
+        build_info: info,
+        kernel,
+        efi_stub,
+    })
 }
 
 fn build_kernel(info: &BuildInfo) -> Result<PathBuf> {

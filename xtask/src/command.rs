@@ -5,7 +5,7 @@ use std::{
     ffi::OsStr,
     io,
     path::PathBuf,
-    process::{Command, ExitStatus, Output, Stdio},
+    process::{Child, Command, ExitStatus, Output, Stdio},
     str,
 };
 
@@ -38,6 +38,15 @@ impl CommandResultExt for io::Result<Output> {
     fn check_status(self, name: &str) -> Result<Output> {
         let output = self.with_context(|| format!("{} could not be executed", name))?;
         Ok(output.status).check_status(name)?;
+        Ok(output)
+    }
+}
+
+impl CommandResultExt for io::Result<Child> {
+    type T = Child;
+
+    fn check_status(self, name: &str) -> Result<Child> {
+        let output = self.with_context(|| format!("{} could not be executed", name))?;
         Ok(output)
     }
 }

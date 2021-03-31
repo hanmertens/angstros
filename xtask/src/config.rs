@@ -28,6 +28,12 @@ impl BuildInfo {
     }
 }
 
+pub struct RunInfo<'a> {
+    pub build_info: &'a BuildInfo,
+    pub kernel: PathBuf,
+    pub efi_stub: PathBuf,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RunConfig {
