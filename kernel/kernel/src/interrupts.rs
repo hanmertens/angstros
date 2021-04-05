@@ -1,5 +1,7 @@
+use core::sync::atomic::{AtomicUsize, Ordering};
 use spin::Once;
 use x86_64::{
+    instructions::interrupts,
     registers::control::Cr2,
     structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
 };
@@ -70,6 +72,31 @@ mod gdt {
     }
 }
 
+mod pic {
+    use pic8259_simple::ChainedPics;
+    use spin::Mutex;
+    use x86_64::instructions::port::Port;
+
+    pub const PIC_1_OFFSET: u8 = 0x20;
+    pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+
+    pub static PICS: Mutex<ChainedPics> =
+        Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+
+    pub fn init() {
+        // Lock PICS before (manually) writing to ports
+        let mut pics = PICS.lock();
+        unsafe {
+            // UEFI masks all interrupt, so unmask at least the ones we want
+            Port::<u8>::new(0x21).write(0b10111000);
+            Port::<u8>::new(0xa1).write(0b10001110);
+            pics.initialize();
+        }
+    }
+}
+
+const TIMER_INTERRUPT_ID: u8 = pic::PIC_1_OFFSET;
+
 static IDT: Once<InterruptDescriptorTable> = Once::new();
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
@@ -103,6 +130,15 @@ extern "x86-interrupt" fn double_fault_handler(
     panic!("double fault");
 }
 
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
+    static COUNT: AtomicUsize = AtomicUsize::new(0);
+    let count = COUNT.fetch_add(1, Ordering::Relaxed);
+    if count % 1000 == 0 {
+        log::info!("Handling timer interrupt #{}", count);
+    }
+    unsafe { pic::PICS.lock().notify_end_of_interrupt(TIMER_INTERRUPT_ID) };
+}
+
 /// Initialize everything related to interrupts; should be called only once
 ///
 /// This includes, specifically:
@@ -119,7 +155,10 @@ pub fn init() {
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
+        idt[TIMER_INTERRUPT_ID as usize].set_handler_fn(timer_interrupt_handler);
         idt
     });
     idt.load();
+    pic::init();
+    interrupts::enable();
 }

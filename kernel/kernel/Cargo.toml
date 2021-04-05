@@ -8,5 +8,6 @@ edition = "2018"
 common = { path = "../common" }
 log = "0.4"
 spin = { version = "0.9", default-features = false, features = ["once"] }
+pic8259_simple = "0.2"
 uefi = "0.8"
 x86_64 = "0.13"

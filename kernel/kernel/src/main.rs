@@ -25,18 +25,14 @@ fn init() {
 pub unsafe extern "C" fn _start(_boot: &'static BootInfo) -> ! {
     init();
 
-    println!();
-    println!("== ÅngstrÖS v{} ==", env!("CARGO_PKG_VERSION"));
-    println!();
+    // Single line to prevent race condition with first timer interrupt
+    println!("\n== ÅngstrÖS v{} ==\n", env!("CARGO_PKG_VERSION"));
 
     log::info!("Boot complete");
 
     instructions::interrupts::int3();
 
-    log::info!("Breakpoint survived...");
-
     loop {
-        log::info!("Going to halt...");
         instructions::hlt();
     }
 }
