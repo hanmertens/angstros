@@ -15,18 +15,22 @@ fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         Some("build") => {
-            build::build(&info)?;
+            build::build(&info, false)?;
         }
         Some("debug") => {
-            let info = build::build(&info)?;
+            let info = build::build(&info, false)?;
             run::debug(&info)?;
         }
         Some("run") => {
-            let info = build::build(&info)?;
+            let info = build::build(&info, false)?;
             run::run(&info)?;
         }
+        Some("test") => {
+            let info = build::build(&info, true)?;
+            run::test(&info)?;
+        }
         Some(s) => println!("Unknown subcommand {}", s),
-        None => println!("Use subcommand build or run"),
+        None => println!("Use subcommand build, debug, run or test"),
     }
     Ok(())
 }

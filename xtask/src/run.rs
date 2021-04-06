@@ -23,6 +23,18 @@ pub fn run(info: &RunInfo) -> Result<()> {
     run_qemu(info.build_info, &[])?.wait().check_status("QEMU")
 }
 
+pub fn test(info: &RunInfo) -> Result<()> {
+    let args = &["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04"];
+    run_qemu(info.build_info, args)?
+        .wait()
+        .map(|status| match status.code() {
+            // This is the mangled kernel::test::ExitCode::Success
+            Some(0x21) => Some(0),
+            code => code,
+        })
+        .check_status("QEMU")
+}
+
 fn run_gdb(kernel: &Path) -> Result<()> {
     let mut max = 1000;
     let tick = 10;

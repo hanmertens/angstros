@@ -15,20 +15,26 @@ pub trait CommandResultExt {
     fn check_status(self, name: &str) -> Result<Self::T>;
 }
 
+impl CommandResultExt for io::Result<Option<i32>> {
+    type T = ();
+
+    fn check_status(self, name: &str) -> Result<()> {
+        let code = self.with_context(|| format!("{} could not be executed", name))?;
+        if code == Some(0) {
+            Ok(())
+        } else if let Some(code) = code {
+            Err(anyhow!("{} exited with status code {}", name, code))
+        } else {
+            Err(anyhow!("{} terminated by signal", name))
+        }
+    }
+}
+
 impl CommandResultExt for io::Result<ExitStatus> {
     type T = ();
 
     fn check_status(self, name: &str) -> Result<()> {
-        let exit_code = self.with_context(|| format!("{} could not be executed", name))?;
-        if exit_code.success() {
-            Ok(())
-        } else {
-            Err(exit_code
-                .code()
-                .map_or(anyhow!("{} terminated by signal", name), |code| {
-                    anyhow!("{} exited with status code {}", name, code)
-                }))
-        }
+        self.map(|status| status.code()).check_status(name)
     }
 }
 
@@ -54,21 +60,17 @@ impl CommandResultExt for io::Result<Child> {
 pub struct Cargo(Command);
 
 impl Cargo {
-    fn new() -> Self {
-        Self(env::var_os("CARGO").map_or_else(|| Command::new(env!("CARGO")), Command::new))
+    pub fn new<S: AsRef<OsStr>>(cmd: S) -> Self {
+        let mut c = env::var_os("CARGO").map_or_else(|| Command::new(env!("CARGO")), Command::new);
+        c.arg(cmd);
+        c.arg("--message-format=json-render-diagnostics");
+        c.stderr(Stdio::inherit());
+        Self(c)
     }
 
-    fn arg<S: AsRef<OsStr>>(&mut self, arg: S) -> &mut Self {
+    pub fn arg<S: AsRef<OsStr>>(&mut self, arg: S) -> &mut Self {
         self.0.arg(arg);
         self
-    }
-
-    pub fn build() -> Self {
-        let mut c = Self::new();
-        c.arg("build")
-            .arg("--message-format=json-render-diagnostics");
-        c.0.stderr(Stdio::inherit());
-        c
     }
 
     pub fn package<S: AsRef<OsStr>>(&mut self, package: S) -> &mut Self {

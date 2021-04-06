@@ -5,8 +5,8 @@ use crate::{
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-pub fn build(info: &BuildInfo) -> Result<RunInfo> {
-    let kernel = build_kernel(info)?;
+pub fn build(info: &BuildInfo, test: bool) -> Result<RunInfo> {
+    let kernel = build_kernel(info, test)?;
     let efi_stub = build_stub(&kernel)?;
     build_efidir(info, &efi_stub)?;
     Ok(RunInfo {
@@ -16,9 +16,13 @@ pub fn build(info: &BuildInfo) -> Result<RunInfo> {
     })
 }
 
-fn build_kernel(info: &BuildInfo) -> Result<PathBuf> {
+fn build_kernel(info: &BuildInfo, test: bool) -> Result<PathBuf> {
     println!("Building kernel...");
-    Cargo::build()
+    let mut cargo = Cargo::new(if test { "test" } else { "build" });
+    if test {
+        cargo.arg("--no-run");
+    }
+    cargo
         .package("kernel")
         .env("RUST_TARGET_PATH", info.targetspec_dir())
         .target("x86_64-unknown-angstros")
@@ -29,7 +33,7 @@ fn build_kernel(info: &BuildInfo) -> Result<PathBuf> {
 
 fn build_stub(kernel: &Path) -> Result<PathBuf> {
     println!("Building UEFI stub...");
-    Cargo::build()
+    Cargo::new("build")
         .package("uefi_stub")
         .target("x86_64-unknown-uefi")
         .z("build-std=core")
