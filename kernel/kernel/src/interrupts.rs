@@ -162,3 +162,13 @@ pub fn init() {
     pic::init();
     interrupts::enable();
 }
+
+#[cfg(test)]
+mod tests {
+    use x86_64::instructions::interrupts;
+
+    #[test_case]
+    fn int3() {
+        interrupts::int3();
+    }
+}

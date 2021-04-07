@@ -19,7 +19,12 @@ use x86_64::instructions;
 const _: KernelMain = _start;
 
 fn init() {
-    common::init(LevelFilter::Trace).unwrap();
+    let level = if cfg!(test) {
+        LevelFilter::Off
+    } else {
+        LevelFilter::Trace
+    };
+    common::init(level).unwrap();
     interrupts::init();
 }
 
@@ -28,15 +33,13 @@ fn init() {
 pub unsafe extern "C" fn _start(_boot: &'static BootInfo) -> ! {
     init();
 
+    #[cfg(test)]
+    test_main();
+
     // Single line to prevent race condition with first timer interrupt
     println!("\n== ÅngstrÖS v{} ==\n", env!("CARGO_PKG_VERSION"));
 
     log::info!("Boot complete");
-
-    #[cfg(test)]
-    test_main();
-
-    instructions::interrupts::int3();
 
     loop {
         instructions::hlt();
