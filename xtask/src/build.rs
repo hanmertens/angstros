@@ -26,7 +26,7 @@ fn build_kernel(info: &BuildInfo, test: bool) -> Result<PathBuf> {
         .package("kernel")
         .env("RUST_TARGET_PATH", info.targetspec_dir())
         .target("x86_64-unknown-angstros")
-        .z("build-std=core")
+        .z("build-std=core,alloc")
         .z("build-std-features=compiler-builtins-mem")
         .single_executable()
 }
