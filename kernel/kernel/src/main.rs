@@ -26,7 +26,6 @@ use common::{
 use core::alloc::Layout;
 use log::LevelFilter;
 use x86_64::{
-    instructions,
     registers::control::Cr3,
     structures::paging::{OffsetPageTable, PageTable},
 };
@@ -49,6 +48,33 @@ fn init(boot_info: &'static BootInfo) {
     interrupts::init();
 }
 
+/// Simple test of user space
+unsafe fn switch_to_userspace(f: fn() -> !) -> ! {
+    const STACK_SIZE: usize = 1024;
+    static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+    asm!(
+        "mov rcx, {}; mov rsp, {}; mov r11, {}; sysretq",
+        // rip is read from rcx
+        in(reg) f,
+        in(reg) STACK.as_mut_ptr() as usize + STACK_SIZE,
+        // rflags is read from r11. For now interrupts are disabled:
+        // those cause a double fault (via page fault) otherwise
+        const 0x0002,
+        // These registers are clobbered
+        out("rcx") _,
+        out("r11") _,
+    );
+    // Function should not return
+    unreachable!();
+}
+
+/// Function that runs in user space but doesn't (and can't) do anything
+fn test_userspace() -> ! {
+    loop {
+        let _a = 2;
+    }
+}
+
 /// Kernel entry point
 #[no_mangle]
 pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
@@ -62,9 +88,7 @@ pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     log::info!("Boot complete");
 
-    loop {
-        instructions::hlt();
-    }
+    switch_to_userspace(test_userspace);
 }
 
 #[cfg(not(test))]

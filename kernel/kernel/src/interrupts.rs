@@ -10,6 +10,7 @@ mod gdt {
     use spin::Once;
     use x86_64::{
         instructions::{segmentation, tables},
+        registers::model_specific::{Efer, EferFlags, Star},
         structures::{
             gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector},
             tss::TaskStateSegment,
@@ -20,7 +21,10 @@ mod gdt {
     /// Global descriptor table and relevant selectors
     struct Gdt {
         gdt: GlobalDescriptorTable,
-        code_selector: SegmentSelector,
+        kernel_code_selector: SegmentSelector,
+        kernel_data_selector: SegmentSelector,
+        user_code_selector: SegmentSelector,
+        user_data_selector: SegmentSelector,
         tss_selector: SegmentSelector,
     }
 
@@ -36,6 +40,7 @@ mod gdt {
     /// - Initialize and load global descriptor table
     /// - Reset nonsensical segment registers
     /// - Set up code and task state segment selectors
+    /// - Enable syscall/sysret
     pub fn init() {
         let tss = TSS.call_once(|| {
             let mut tss = TaskStateSegment::new();
@@ -52,23 +57,38 @@ mod gdt {
         });
         let gdt = GDT.call_once(|| {
             let mut gdt = GlobalDescriptorTable::new();
-            let code_selector = gdt.add_entry(Descriptor::kernel_code_segment());
+            // Kernel segments need to be code/data; User data/code
+            let kernel_code_selector = gdt.add_entry(Descriptor::kernel_code_segment());
+            let kernel_data_selector = gdt.add_entry(Descriptor::kernel_data_segment());
+            let user_data_selector = gdt.add_entry(Descriptor::user_data_segment());
+            let user_code_selector = gdt.add_entry(Descriptor::user_code_segment());
             let tss_selector = gdt.add_entry(Descriptor::tss_segment(&tss));
             Gdt {
                 gdt,
-                code_selector,
+                kernel_code_selector,
+                kernel_data_selector,
+                user_code_selector,
+                user_data_selector,
                 tss_selector,
             }
         });
 
-        // Reset segment register if set by UEFI firmware
-        unsafe { asm!("mov ss, {:r}", in(reg) 0) };
-
         gdt.gdt.load();
         unsafe {
-            segmentation::set_cs(gdt.code_selector);
+            segmentation::set_cs(gdt.kernel_code_selector);
+            segmentation::load_ss(gdt.kernel_data_selector);
             tables::load_tss(gdt.tss_selector);
         }
+
+        // Enable syscall/sysret
+        unsafe { Efer::update(|flags| *flags |= EferFlags::SYSTEM_CALL_EXTENSIONS) };
+        Star::write(
+            gdt.user_code_selector,
+            gdt.user_data_selector,
+            gdt.kernel_code_selector,
+            gdt.kernel_data_selector,
+        )
+        .unwrap();
     }
 }
 

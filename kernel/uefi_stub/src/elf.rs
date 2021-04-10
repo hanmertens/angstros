@@ -77,7 +77,7 @@ impl<'a> ElfInfo<'a> {
             return Ok(());
         }
         let flags = {
-            let mut flags = PageTableFlags::PRESENT;
+            let mut flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
             if header.flags().is_write() {
                 flags |= PageTableFlags::WRITABLE;
             }
