@@ -26,8 +26,10 @@ use common::{
 use core::alloc::Layout;
 use log::LevelFilter;
 use x86_64::{
-    registers::control::Cr3,
+    instructions,
+    registers::{control::Cr3, model_specific::LStar},
     structures::paging::{OffsetPageTable, PageTable},
+    VirtAddr,
 };
 
 // Type-check of kernel entry point
@@ -52,6 +54,8 @@ fn init(boot_info: &'static BootInfo) {
 unsafe fn switch_to_userspace(f: fn() -> !) -> ! {
     const STACK_SIZE: usize = 1024;
     static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+    LStar::write(VirtAddr::from_ptr(switch_to_kernelspace as *const ()));
+    log::info!("Switching to userspace");
     asm!(
         "mov rcx, {}; mov rsp, {}; mov r11, {}; sysretq",
         // rip is read from rcx
@@ -70,8 +74,16 @@ unsafe fn switch_to_userspace(f: fn() -> !) -> ! {
 
 /// Function that runs in user space but doesn't (and can't) do anything
 fn test_userspace() -> ! {
+    let _a = 2;
+    unsafe { asm!("syscall") };
+    unreachable!();
+}
+
+fn switch_to_kernelspace() {
+    log::info!("Back in kernelspace");
+    instructions::interrupts::enable();
     loop {
-        let _a = 2;
+        instructions::hlt();
     }
 }
 
