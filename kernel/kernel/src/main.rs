@@ -1,6 +1,12 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt, alloc_error_handler, asm, custom_test_frameworks)]
+#![feature(
+    abi_x86_interrupt,
+    alloc_error_handler,
+    asm,
+    const_mut_refs,
+    custom_test_frameworks
+)]
 #![allow(clippy::inconsistent_digit_grouping)]
 #![test_runner(test::test_runner)]
 #![reexport_test_harness_main = "test_main"]

@@ -3,10 +3,13 @@
 //! This includes both frame allocators governing physical memory and "normal"
 //! allocators governing virtual memory.
 
+#[allow(dead_code)]
 mod bump;
+mod linked_list;
 mod region_frame;
 
 pub use bump::BumpAllocator;
+pub use linked_list::LinkedListAllocator;
 pub use region_frame::RegionFrameAllocator;
 
 use x86_64::{
@@ -19,9 +22,11 @@ use x86_64::{
 pub const HEAP_START: VirtAddr = VirtAddr::new_truncate(0o1_000_000_0000);
 pub const HEAP_SIZE: u64 = 0o1_000_0000;
 
+type Allocator = LinkedListAllocator;
+
 /// Our global allocator
 #[global_allocator]
-pub static ALLOC: BumpAllocator = BumpAllocator::new();
+pub static ALLOC: Allocator = Allocator::new();
 
 pub fn init<M, A>(mapper: &mut M, allocator: &mut A) -> Result<(), MapToError<Size4KiB>>
 where
