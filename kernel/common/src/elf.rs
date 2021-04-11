@@ -2,7 +2,9 @@
 
 use core::ptr;
 use x86_64::{
-    structures::paging::{FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB},
+    structures::paging::{
+        FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB, Translate,
+    },
     PhysAddr, VirtAddr,
 };
 use xmas_elf::{
@@ -41,16 +43,30 @@ impl<'a> ElfInfo<'a> {
     /// Setup page table mappings based on desired ELF mappings
     ///
     /// Only supports very rudimentary ELF features
-    pub fn setup_mappings<M, A>(&self, map: &mut M, all: &mut A) -> Result<(), &'static str>
+    ///
+    /// The `active` parameter indicates whether the passed page table is active
+    /// and can provide virtual-to-physical translations. Otherwise, identity
+    /// mapping is assumed.
+    pub fn setup_mappings<M, A>(
+        &self,
+        map: &mut M,
+        all: &mut A,
+        active: bool,
+    ) -> Result<(), &'static str>
     where
-        M: Mapper<Size4KiB>,
+        M: Mapper<Size4KiB> + Translate,
         A: FrameAllocator<Size4KiB>,
     {
         log::info!("Setting up ELF mappings...");
         for header in self.0.program_iter() {
             match header.get_type()? {
                 Type::Load => {
-                    self.load_segment(&header, map, all)?;
+                    if active && header.offset() == 0 {
+                        // This section by default overlaps with that of the kernel
+                        log::warn!("Skipping conflicting read-only header");
+                    } else {
+                        self.load_segment(&header, map, all, active)?;
+                    }
                 }
                 ty => {
                     log::debug!("Skipping section of type {:?}", ty);
@@ -66,9 +82,10 @@ impl<'a> ElfInfo<'a> {
         header: &ProgramHeader,
         map: &mut M,
         all: &mut A,
+        active: bool,
     ) -> Result<(), &'static str>
     where
-        M: Mapper<Size4KiB>,
+        M: Mapper<Size4KiB> + Translate,
         A: FrameAllocator<Size4KiB>,
     {
         let virt_len = header.mem_size();
@@ -88,9 +105,12 @@ impl<'a> ElfInfo<'a> {
         };
         let virt_start = VirtAddr::new(header.virtual_addr());
         let virt_end = virt_start + virt_len - 1u64;
-        let phys_start =
-            PhysAddr::new(VirtAddr::from_ptr(self.0.input as *const _ as *const u8).as_u64())
-                + header.offset();
+        let elf_virt = VirtAddr::from_ptr(self.0.input as *const _ as *const u8) + header.offset();
+        let phys_start = if active {
+            map.translate_addr(elf_virt).ok_or("Elf not mapped")?
+        } else {
+            PhysAddr::new(elf_virt.as_u64())
+        };
         let phys_end = phys_start + phys_len - 1u64;
         log::debug!(
             "Mapping {:?}..{:?} to {:?}..{:?}",

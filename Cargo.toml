@@ -1,2 +1,2 @@
 [workspace]
-members = ["kernel/*", "xtask"]
+members = ["kernel/*", "user/*", "xtask"]

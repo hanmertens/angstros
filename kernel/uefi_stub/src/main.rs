@@ -3,15 +3,14 @@
 #![feature(abi_efiapi, asm)]
 
 mod allocator;
-mod elf;
 
 use allocator::BootAllocator;
 use common::{
     boot::{offset, BootInfo},
+    elf::Elf,
     println,
 };
 use core::{mem, panic::PanicInfo, slice};
-use elf::Elf;
 use log::LevelFilter;
 use uefi::{prelude::*, table::runtime::ResetType, Handle};
 use x86_64::{
@@ -67,7 +66,7 @@ fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
     kernel_page_table[offset::PAGE_TABLE_INDEX] = uefi_page_table[0].clone();
     let mut offset_kpt = unsafe { OffsetPageTable::new(kernel_page_table, VirtAddr::new(0)) };
     let kernel_info = KERNEL.info()?;
-    kernel_info.setup_mappings(&mut offset_kpt, &mut boot_alloc)?;
+    kernel_info.setup_mappings(&mut offset_kpt, &mut boot_alloc, false)?;
 
     // Map pages around context switch
     log::info!(

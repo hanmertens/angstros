@@ -6,7 +6,8 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 pub fn build(info: &BuildInfo, test: bool) -> Result<RunInfo> {
-    let kernel = build_kernel(info, test)?;
+    let user = build_user(info)?;
+    let kernel = build_kernel(info, &user, test)?;
     let efi_stub = build_stub(&kernel)?;
     build_efidir(info, &efi_stub)?;
     Ok(RunInfo {
@@ -16,7 +17,18 @@ pub fn build(info: &BuildInfo, test: bool) -> Result<RunInfo> {
     })
 }
 
-fn build_kernel(info: &BuildInfo, test: bool) -> Result<PathBuf> {
+fn build_user(info: &BuildInfo) -> Result<PathBuf> {
+    println!("Building userspace...");
+    Cargo::new("build")
+        .package("dummy")
+        .env("RUST_TARGET_PATH", info.targetspec_dir())
+        .target("x86_64-unknown-angstros")
+        .z("build-std=core")
+        .z("build-std-features=compiler-builtins-mem")
+        .single_executable()
+}
+
+fn build_kernel(info: &BuildInfo, user: &Path, test: bool) -> Result<PathBuf> {
     println!("Building kernel...");
     let mut cargo = Cargo::new(if test { "test" } else { "build" });
     if test {
@@ -28,6 +40,7 @@ fn build_kernel(info: &BuildInfo, test: bool) -> Result<PathBuf> {
         .target("x86_64-unknown-angstros")
         .z("build-std=core,alloc")
         .z("build-std-features=compiler-builtins-mem")
+        .env("USER_PATH", user)
         .single_executable()
 }
 

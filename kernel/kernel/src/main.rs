@@ -21,6 +21,7 @@ mod test;
 use allocator::RegionFrameAllocator;
 use common::{
     boot::{offset, BootInfo, KernelMain},
+    elf::{Elf, ElfInfo},
     println,
 };
 use core::alloc::Layout;
@@ -32,10 +33,21 @@ use x86_64::{
     VirtAddr,
 };
 
+const USER_SIZE: usize = include_bytes!(env!("USER_PATH")).len();
+const USER_BYTES: [u8; USER_SIZE] = *include_bytes!(env!("USER_PATH"));
+
+/// Put userspace ELF in memory
+static USER: Elf<USER_SIZE> = Elf::new(USER_BYTES);
+
 // Type-check of kernel entry point
 const _: KernelMain = _start;
 
-fn init(boot_info: &'static BootInfo) {
+struct Init {
+    page_table: OffsetPageTable<'static>,
+    frame_allocator: RegionFrameAllocator,
+}
+
+fn init(boot_info: &'static BootInfo) -> Init {
     let level = if cfg!(test) {
         LevelFilter::Off
     } else {
@@ -45,21 +57,27 @@ fn init(boot_info: &'static BootInfo) {
     let page_table_addr = offset::VIRT_ADDR + Cr3::read().0.start_address().as_u64();
     let page_table_ref = unsafe { &mut *page_table_addr.as_mut_ptr::<PageTable>() };
     let mut page_table = unsafe { OffsetPageTable::new(page_table_ref, offset::VIRT_ADDR) };
-    let mut alloca = RegionFrameAllocator::new(&boot_info.memory_map());
-    allocator::init(&mut page_table, &mut alloca).unwrap();
+    let mut frame_allocator = RegionFrameAllocator::new(&boot_info.memory_map());
+    allocator::init(&mut page_table, &mut frame_allocator).unwrap();
     interrupts::init();
+    Init {
+        page_table,
+        frame_allocator,
+    }
 }
 
 /// Simple test of user space
-unsafe fn switch_to_userspace(f: fn() -> !) -> ! {
+unsafe fn switch_to_userspace(init: &mut Init, elf: &ElfInfo) -> ! {
     const STACK_SIZE: usize = 1024;
     static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
-    LStar::write(VirtAddr::from_ptr(switch_to_kernelspace as *const ()));
+    LStar::write(VirtAddr::from_ptr(syscall_handler as *const ()));
+    elf.setup_mappings(&mut init.page_table, &mut init.frame_allocator, true)
+        .unwrap();
     log::info!("Switching to userspace");
     asm!(
         "mov rcx, {}; mov rsp, {}; mov r11, {}; sysretq",
         // rip is read from rcx
-        in(reg) f,
+        in(reg) elf.entry_point(),
         in(reg) STACK.as_mut_ptr() as usize + STACK_SIZE,
         // rflags is read from r11. For now interrupts are disabled:
         // those cause a double fault (via page fault) otherwise
@@ -72,14 +90,7 @@ unsafe fn switch_to_userspace(f: fn() -> !) -> ! {
     unreachable!();
 }
 
-/// Function that runs in user space but doesn't (and can't) do anything
-fn test_userspace() -> ! {
-    let _a = 2;
-    unsafe { asm!("syscall") };
-    unreachable!();
-}
-
-fn switch_to_kernelspace() {
+fn syscall_handler() {
     log::info!("Back in kernelspace");
     instructions::interrupts::enable();
     loop {
@@ -90,7 +101,7 @@ fn switch_to_kernelspace() {
 /// Kernel entry point
 #[no_mangle]
 pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
-    init(boot_info);
+    let mut init = init(boot_info);
 
     #[cfg(test)]
     test_main();
@@ -100,7 +111,7 @@ pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     log::info!("Boot complete");
 
-    switch_to_userspace(test_userspace);
+    switch_to_userspace(&mut init, &USER.info().unwrap());
 }
 
 #[cfg(not(test))]
