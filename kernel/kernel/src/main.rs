@@ -17,20 +17,19 @@ mod allocator;
 mod interrupts;
 #[cfg(test)]
 mod test;
+mod threads;
 
 use allocator::RegionFrameAllocator;
 use common::{
     boot::{offset, BootInfo, KernelMain},
-    elf::{Elf, ElfInfo},
+    elf::Elf,
     println,
 };
 use core::alloc::Layout;
 use log::LevelFilter;
 use x86_64::{
-    instructions,
-    registers::{control::Cr3, model_specific::LStar},
+    registers::control::Cr3,
     structures::paging::{OffsetPageTable, PageTable},
-    VirtAddr,
 };
 
 const USER_SIZE: usize = include_bytes!(env!("USER_PATH")).len();
@@ -42,7 +41,7 @@ static USER: Elf<USER_SIZE> = Elf::new(USER_BYTES);
 // Type-check of kernel entry point
 const _: KernelMain = _start;
 
-struct Init {
+pub struct Init {
     page_table: OffsetPageTable<'static>,
     frame_allocator: RegionFrameAllocator,
 }
@@ -66,38 +65,6 @@ fn init(boot_info: &'static BootInfo) -> Init {
     }
 }
 
-/// Simple test of user space
-unsafe fn switch_to_userspace(init: &mut Init, elf: &ElfInfo) -> ! {
-    const STACK_SIZE: usize = 1024;
-    static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
-    LStar::write(VirtAddr::from_ptr(syscall_handler as *const ()));
-    elf.setup_mappings(&mut init.page_table, &mut init.frame_allocator, true)
-        .unwrap();
-    log::info!("Switching to userspace");
-    asm!(
-        "mov rcx, {}; mov rsp, {}; mov r11, {}; sysretq",
-        // rip is read from rcx
-        in(reg) elf.entry_point(),
-        in(reg) STACK.as_mut_ptr() as usize + STACK_SIZE,
-        // rflags is read from r11. For now interrupts are disabled:
-        // those cause a double fault (via page fault) otherwise
-        const 0x0002,
-        // These registers are clobbered
-        out("rcx") _,
-        out("r11") _,
-    );
-    // Function should not return
-    unreachable!();
-}
-
-fn syscall_handler() {
-    log::info!("Back in kernelspace");
-    instructions::interrupts::enable();
-    loop {
-        instructions::hlt();
-    }
-}
-
 /// Kernel entry point
 #[no_mangle]
 pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
@@ -111,7 +78,7 @@ pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     log::info!("Boot complete");
 
-    switch_to_userspace(&mut init, &USER.info().unwrap());
+    threads::spawn_user(&mut init, &USER.info().unwrap());
 }
 
 #[cfg(not(test))]

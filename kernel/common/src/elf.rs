@@ -44,14 +44,13 @@ impl<'a> ElfInfo<'a> {
     ///
     /// Only supports very rudimentary ELF features
     ///
-    /// The `active` parameter indicates whether the passed page table is active
-    /// and can provide virtual-to-physical translations. Otherwise, identity
-    /// mapping is assumed.
+    /// The `user` parameter indicates whether the mapping is meant for
+    /// userspace.
     pub fn setup_mappings<M, A>(
         &self,
         map: &mut M,
         all: &mut A,
-        active: bool,
+        user: bool,
     ) -> Result<(), &'static str>
     where
         M: Mapper<Size4KiB> + Translate,
@@ -61,11 +60,11 @@ impl<'a> ElfInfo<'a> {
         for header in self.0.program_iter() {
             match header.get_type()? {
                 Type::Load => {
-                    if active && header.offset() == 0 {
+                    if user && header.offset() == 0 {
                         // This section by default overlaps with that of the kernel
                         log::warn!("Skipping conflicting read-only header");
                     } else {
-                        self.load_segment(&header, map, all, active)?;
+                        self.load_segment(&header, map, all, user)?;
                     }
                 }
                 ty => {
@@ -82,7 +81,7 @@ impl<'a> ElfInfo<'a> {
         header: &ProgramHeader,
         map: &mut M,
         all: &mut A,
-        active: bool,
+        user: bool,
     ) -> Result<(), &'static str>
     where
         M: Mapper<Size4KiB> + Translate,
@@ -94,7 +93,10 @@ impl<'a> ElfInfo<'a> {
             return Ok(());
         }
         let flags = {
-            let mut flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
+            let mut flags = PageTableFlags::PRESENT;
+            if user {
+                flags |= PageTableFlags::USER_ACCESSIBLE;
+            }
             if header.flags().is_write() {
                 flags |= PageTableFlags::WRITABLE;
             }
@@ -106,7 +108,7 @@ impl<'a> ElfInfo<'a> {
         let virt_start = VirtAddr::new(header.virtual_addr());
         let virt_end = virt_start + virt_len - 1u64;
         let elf_virt = VirtAddr::from_ptr(self.0.input as *const _ as *const u8) + header.offset();
-        let phys_start = if active {
+        let phys_start = if user {
             map.translate_addr(elf_virt).ok_or("Elf not mapped")?
         } else {
             PhysAddr::new(elf_virt.as_u64())
