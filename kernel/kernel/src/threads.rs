@@ -9,7 +9,7 @@ use x86_64::{
 
 /// Simple test of user space
 pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) -> ! {
-    elf.setup_mappings(&mut init.page_table, &mut init.frame_allocator, true)
+    elf.setup_mappings(&mut init.page_table, &mut init.frame_allocator)
         .unwrap();
     let stack_start = 0x2000;
     let stack_length = 2;

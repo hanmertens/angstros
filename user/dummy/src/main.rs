@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(asm, link_args)]
 #![allow(unused_attributes)]
-#![link_args = "--section-start=.text=0x1000"]
+#![link_args = "-pie"]
 
 use core::panic::PanicInfo;
 

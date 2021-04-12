@@ -8,6 +8,7 @@ use x86_64::{
     PhysAddr, VirtAddr,
 };
 use xmas_elf::{
+    header,
     program::{ProgramHeader, Type},
     ElfFile,
 };
@@ -26,46 +27,54 @@ impl<const N: usize> Elf<N> {
     }
 
     /// Parse ELF using [`xmas-elf`].
-    pub fn info(&self) -> Result<ElfInfo, &'static str> {
-        ElfFile::new(&(self.0).0).map(ElfInfo)
+    ///
+    /// The `user` parameter indicates whether the ELF is meant for userspace.
+    pub fn info(&self, user: bool) -> Result<ElfInfo, &'static str> {
+        Ok(ElfInfo {
+            elf: ElfFile::new(&(self.0).0)?,
+            user,
+        })
     }
 }
 
 /// Extra functionality based on [`xmas-elf`] parsing.
-pub struct ElfInfo<'a>(ElfFile<'a>);
+pub struct ElfInfo<'a> {
+    elf: ElfFile<'a>,
+    user: bool,
+}
 
 impl<'a> ElfInfo<'a> {
     /// Obtain the entry point as encoded in the ELF header
     pub fn entry_point(&self) -> u64 {
-        self.0.header.pt2.entry_point()
+        self.elf.header.pt2.entry_point() + self.offset()
+    }
+
+    /// Determine ELF offset for PIE binaries
+    fn offset(&self) -> u64 {
+        if self.elf.header.pt2.type_().as_type() == header::Type::SharedObject {
+            if self.user {
+                0x100000
+            } else {
+                0x200000
+            }
+        } else {
+            0
+        }
     }
 
     /// Setup page table mappings based on desired ELF mappings
     ///
     /// Only supports very rudimentary ELF features
-    ///
-    /// The `user` parameter indicates whether the mapping is meant for
-    /// userspace.
-    pub fn setup_mappings<M, A>(
-        &self,
-        map: &mut M,
-        all: &mut A,
-        user: bool,
-    ) -> Result<(), &'static str>
+    pub fn setup_mappings<M, A>(&self, map: &mut M, all: &mut A) -> Result<(), &'static str>
     where
         M: Mapper<Size4KiB> + Translate,
         A: FrameAllocator<Size4KiB>,
     {
         log::info!("Setting up ELF mappings...");
-        for header in self.0.program_iter() {
+        for header in self.elf.program_iter() {
             match header.get_type()? {
                 Type::Load => {
-                    if user && header.offset() == 0 {
-                        // This section by default overlaps with that of the kernel
-                        log::warn!("Skipping conflicting read-only header");
-                    } else {
-                        self.load_segment(&header, map, all, user)?;
-                    }
+                    self.load_segment(&header, map, all)?;
                 }
                 ty => {
                     log::debug!("Skipping section of type {:?}", ty);
@@ -81,7 +90,6 @@ impl<'a> ElfInfo<'a> {
         header: &ProgramHeader,
         map: &mut M,
         all: &mut A,
-        user: bool,
     ) -> Result<(), &'static str>
     where
         M: Mapper<Size4KiB> + Translate,
@@ -94,7 +102,7 @@ impl<'a> ElfInfo<'a> {
         }
         let flags = {
             let mut flags = PageTableFlags::PRESENT;
-            if user {
+            if self.user {
                 flags |= PageTableFlags::USER_ACCESSIBLE;
             }
             if header.flags().is_write() {
@@ -105,10 +113,11 @@ impl<'a> ElfInfo<'a> {
             }
             flags
         };
-        let virt_start = VirtAddr::new(header.virtual_addr());
+        let virt_start = VirtAddr::new(header.virtual_addr()) + self.offset();
         let virt_end = virt_start + virt_len - 1u64;
-        let elf_virt = VirtAddr::from_ptr(self.0.input as *const _ as *const u8) + header.offset();
-        let phys_start = if user {
+        let elf_virt =
+            VirtAddr::from_ptr(self.elf.input as *const _ as *const u8) + header.offset();
+        let phys_start = if self.user {
             map.translate_addr(elf_virt).ok_or("Elf not mapped")?
         } else {
             PhysAddr::new(elf_virt.as_u64())

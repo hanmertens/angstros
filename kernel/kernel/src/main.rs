@@ -78,7 +78,7 @@ pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     log::info!("Boot complete");
 
-    threads::spawn_user(&mut init, &USER.info().unwrap());
+    threads::spawn_user(&mut init, &USER.info(true).unwrap());
 }
 
 #[cfg(not(test))]

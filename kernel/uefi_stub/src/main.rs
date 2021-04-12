@@ -65,8 +65,8 @@ fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
     };
     kernel_page_table[offset::PAGE_TABLE_INDEX] = uefi_page_table[0].clone();
     let mut offset_kpt = unsafe { OffsetPageTable::new(kernel_page_table, VirtAddr::new(0)) };
-    let kernel_info = KERNEL.info()?;
-    kernel_info.setup_mappings(&mut offset_kpt, &mut boot_alloc, false)?;
+    let kernel_info = KERNEL.info(false)?;
+    kernel_info.setup_mappings(&mut offset_kpt, &mut boot_alloc)?;
 
     // Map pages around context switch
     log::info!(
