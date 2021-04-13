@@ -10,6 +10,7 @@ use x86_64::{
 use xmas_elf::{
     header,
     program::{ProgramHeader, Type},
+    sections::{Rela, SectionData},
     ElfFile,
 };
 
@@ -79,6 +80,17 @@ impl<'a> ElfInfo<'a> {
                 ty => {
                     log::debug!("Skipping section of type {:?}", ty);
                 }
+            }
+        }
+        for header in self.elf.section_iter() {
+            match header.get_data(&self.elf)? {
+                SectionData::Rela64(list) => {
+                    self.relocate(list, map)?;
+                }
+                SectionData::Rel64(_) | SectionData::Rel32(_) | SectionData::Rela32(_) => {
+                    log::warn!("Relocation section skipped (not implemented)");
+                }
+                _ => {}
             }
         }
         Ok(())
@@ -187,6 +199,36 @@ impl<'a> ElfInfo<'a> {
                     "Mapping error"
                 })?
                 .ignore();
+        }
+        Ok(())
+    }
+
+    /// Performs relocations as described by Rela entries
+    ///
+    /// Does not check whether these relocations are valid (well-aligned, in
+    /// bounds of the ELF etc.).
+    fn relocate<M>(&self, list: &[Rela<u64>], map: &mut M) -> Result<(), &'static str>
+    where
+        M: Mapper<Size4KiB> + Translate,
+    {
+        log::debug!("Fixing {} ELF relocations", list.len());
+        let offset = VirtAddr::new(self.offset());
+        for rela in list {
+            match rela.get_type() {
+                8 => {
+                    // R_X86_64_RELATIVE (Adjust by program base)
+                    let virt = offset + rela.get_offset();
+                    let phys = map.translate_addr(virt).ok_or("Relocation not mapped")?;
+                    // Base + Addend
+                    let value = offset + rela.get_addend();
+                    let ptr = phys.as_u64() as *mut u64;
+                    unsafe { ptr.write(value.as_u64()) };
+                }
+                n => {
+                    log::warn!("Relocation type {} not handled", n);
+                    return Err("Unimplemented relocation type encountered");
+                }
+            }
         }
         Ok(())
     }

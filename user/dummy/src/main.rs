@@ -1,8 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(asm, link_args)]
-#![allow(unused_attributes)]
-#![link_args = "-pie"]
+#![feature(asm)]
 
 use core::panic::PanicInfo;
 
