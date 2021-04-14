@@ -33,9 +33,8 @@ pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) -> ! {
         // rip is read from rcx
         in(reg) elf.entry_point(),
         in(reg) stack_start + stack_length * 0x1000,
-        // rflags is read from r11. For now interrupts are disabled:
-        // those cause a double fault (via page fault) otherwise
-        const 0x0002,
+        // rflags is read from r11
+        const 0x0202,
         // These registers are clobbered
         out("rcx") _,
         out("r11") _,

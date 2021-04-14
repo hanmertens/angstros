@@ -29,6 +29,7 @@ mod gdt {
     }
 
     pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
+    pub const GENERAL_IST_INDEX: u16 = 1;
 
     static GDT: Once<Gdt> = Once::new();
     static TSS: Once<TaskStateSegment> = Once::new();
@@ -46,6 +47,14 @@ mod gdt {
             let mut tss = TaskStateSegment::new();
             // Set up stack for double fault handler
             tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
+                const STACK_SIZE: usize = 4096 * 5;
+                // Not thread-safe
+                static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+
+                let stack_start = VirtAddr::from_ptr(unsafe { &STACK });
+                stack_start + STACK_SIZE
+            };
+            tss.interrupt_stack_table[GENERAL_IST_INDEX as usize] = {
                 const STACK_SIZE: usize = 4096 * 5;
                 // Not thread-safe
                 static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
@@ -168,14 +177,20 @@ pub fn init() {
     gdt::init();
     let idt = IDT.call_once(|| {
         let mut idt = InterruptDescriptorTable::new();
-        idt.breakpoint.set_handler_fn(breakpoint_handler);
-        idt.page_fault.set_handler_fn(page_fault_handler);
         unsafe {
+            idt.breakpoint
+                .set_handler_fn(breakpoint_handler)
+                .set_stack_index(gdt::GENERAL_IST_INDEX);
+            idt.page_fault
+                .set_handler_fn(page_fault_handler)
+                .set_stack_index(gdt::GENERAL_IST_INDEX);
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
+            idt[TIMER_INTERRUPT_ID as usize]
+                .set_handler_fn(timer_interrupt_handler)
+                .set_stack_index(gdt::GENERAL_IST_INDEX);
         }
-        idt[TIMER_INTERRUPT_ID as usize].set_handler_fn(timer_interrupt_handler);
         idt
     });
     idt.load();
