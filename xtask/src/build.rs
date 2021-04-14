@@ -25,7 +25,6 @@ fn build_user(info: &BuildInfo) -> Result<PathBuf> {
         .target("x86_64-unknown-angstros")
         .z("build-std=core")
         .z("build-std-features=compiler-builtins-mem")
-        .env("RUSTFLAGS", "-C link-args=-pie")
         .single_executable()
 }
 
@@ -42,7 +41,6 @@ fn build_kernel(info: &BuildInfo, user: &Path, test: bool) -> Result<PathBuf> {
         .z("build-std=core,alloc")
         .z("build-std-features=compiler-builtins-mem")
         .env("USER_PATH", user)
-        .env("RUSTFLAGS", "-C link-args=-pie")
         .single_executable()
 }
 
