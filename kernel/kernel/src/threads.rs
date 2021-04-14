@@ -7,12 +7,14 @@ use x86_64::{
     VirtAddr,
 };
 
+static mut STACK: u64 = 0;
+
 /// Simple test of user space
 pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) -> ! {
     elf.setup_mappings(&mut init.page_table, &mut init.frame_allocator)
         .unwrap();
     let stack_start = 0x2000;
-    let stack_length = 2;
+    let stack_length = 1;
     for i in 0..stack_length {
         let page = Page::containing_address(VirtAddr::new(stack_start)) + i;
         let frame = init.frame_allocator.allocate_frame().unwrap();
@@ -26,7 +28,8 @@ pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) -> ! {
     LStar::write(VirtAddr::from_ptr(syscall_handler as *const ()));
     log::info!("Switching to userspace");
     asm!(
-        "mov rcx, {}; mov rsp, {}; mov r11, {}; sysretq",
+        "mov [{}], rsp; mov rcx, {}; mov rsp, {}; mov r11, {}; sysretq",
+        in(reg) &STACK,
         // rip is read from rcx
         in(reg) elf.entry_point(),
         in(reg) stack_start + stack_length * 0x1000,
@@ -41,7 +44,8 @@ pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) -> ! {
     unreachable!();
 }
 
-fn syscall_handler() -> ! {
+unsafe extern "C" fn syscall_handler() -> ! {
+    asm!("mov rsp, [{}]", in(reg) &STACK);
     log::info!("Back in kernelspace");
     instructions::interrupts::enable();
     loop {
