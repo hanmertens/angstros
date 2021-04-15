@@ -1,6 +1,7 @@
 use crate::Init;
 use common::elf::ElfInfo;
 use core::{slice, str};
+use sys::SyscallCode;
 use x86_64::{
     instructions,
     registers::model_specific::LStar,
@@ -39,10 +40,11 @@ pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) {
 unsafe fn syscall_loop(entry_point: u64, stack_end: u64) {
     let mut rip = entry_point;
     let mut rsp = stack_end;
+    let mut rax = 0u64;
     loop {
         let code: u64;
-        let ptr: u64;
-        let len: u64;
+        let rsi: u64;
+        let rdx: u64;
         asm!(
             "mov [{}], rsp; mov rsp, {}; sysretq; return_syscall:",
             in(reg) &STACK,
@@ -52,10 +54,10 @@ unsafe fn syscall_loop(entry_point: u64, stack_end: u64) {
             // rflags is read from r11
             inlateout("r11") 0x0202 => _,
             // The rest is not preserved
-            lateout("rax") _,
+            inlateout("rax") rax => _,
             lateout("rbx") rsp,
-            lateout("rdx") len,
-            lateout("rsi") ptr,
+            lateout("rdx") rdx,
+            lateout("rsi") rsi,
             lateout("rdi") code,
             lateout("r8") _,
             lateout("r9") _,
@@ -65,23 +67,43 @@ unsafe fn syscall_loop(entry_point: u64, stack_end: u64) {
             lateout("r14") _,
             lateout("r15") _,
         );
+        rax = 0;
         match code {
-            0 => return,
-            1 => {
+            x if x == SyscallCode::Exit as u64 => {
+                log::info!("User exited with code {}", rsi);
+                return;
+            }
+            x if x == SyscallCode::Log as u64 => {
                 // TODO add checks for pointer and length
-                let s = slice::from_raw_parts(ptr as _, len as _);
+                let s = slice::from_raw_parts(rsi as _, rdx as _);
                 match str::from_utf8(s) {
                     Ok(s) => log::info!("User message: {}", s),
-                    Err(_) => log::warn!("User message not valid UTF-8"),
+                    Err(_) => {
+                        log::warn!("User message not valid UTF-8");
+                        rax = 1;
+                    }
                 }
             }
-            _ => log::warn!("Ignoring unknown syscall {}", code),
+            _ => {
+                log::warn!("Ignoring unknown syscall {}", code as u64);
+                rax = 1
+            }
         }
     }
 }
 
 unsafe extern "C" fn syscall_handler() {
-    asm!("mov rbx, rsp; mov rsp, [{}]; jmp return_syscall", in(reg) &STACK);
+    asm!(
+        "pop rax; mov rbx, rsp; mov rsp, [{}]; jmp return_syscall",
+        in(reg) &STACK,
+        // The pop is just to realign the stack since this function isn't naked
+        out("rax") _,
+        out("rbx") _,
+        out("rcx") _,
+        out("rdx") _,
+        out("rsi") _,
+        out("rdi") _,
+    );
 }
 
 #[cfg(test)]

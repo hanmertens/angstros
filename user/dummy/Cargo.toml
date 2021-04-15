@@ -5,3 +5,4 @@ authors = ["Han Mertens <hanmertens@outlook.com>"]
 edition = "2018"
 
 [dependencies]
+os = { path = "../os" }

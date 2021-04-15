@@ -1,5 +1,6 @@
 //! Helpers for dealing with the kernel ELF.
 
+use crate::boot::offset;
 use core::ptr;
 use x86_64::{
     structures::paging::{
@@ -217,11 +218,19 @@ impl<'a> ElfInfo<'a> {
             match rela.get_type() {
                 8 => {
                     // R_X86_64_RELATIVE (Adjust by program base)
-                    let virt = offset + rela.get_offset();
-                    let phys = map.translate_addr(virt).ok_or("Relocation not mapped")?;
+                    let ptr = {
+                        let virt_base = offset + rela.get_offset();
+                        let phys = map
+                            .translate_addr(virt_base)
+                            .ok_or("Relocation not mapped")?;
+                        let mut virt = VirtAddr::new(phys.as_u64());
+                        if self.user {
+                            virt += offset::USIZE;
+                        }
+                        virt.as_mut_ptr::<u64>()
+                    };
                     // Base + Addend
                     let value = offset + rela.get_addend();
-                    let ptr = phys.as_u64() as *mut u64;
                     unsafe { ptr.write(value.as_u64()) };
                 }
                 n => {
