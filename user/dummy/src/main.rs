@@ -6,8 +6,9 @@ use core::panic::PanicInfo;
 
 #[no_mangle]
 extern "C" fn _start() {
-    let _a = 2;
-    unsafe { asm!("syscall") };
+    let hw = "Hello kernel from userspace!";
+    unsafe { asm!("syscall", in("rdi") 1, in("rsi") hw.as_ptr(), in("rdx") hw.len()) };
+    unsafe { asm!("syscall", in("rdi") 0) };
 }
 
 #[panic_handler]
