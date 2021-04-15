@@ -8,5 +8,5 @@ edition = "2018"
 common = { path = "../common" }
 log = "0.4"
 uefi = "0.8"
-x86_64 = "0.13"
+x86_64 = "0.14"
 xmas-elf = "0.7"

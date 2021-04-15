@@ -7,8 +7,8 @@ edition = "2018"
 [dependencies]
 uefi = "0.8"
 log = "0.4"
-owo-colors = "1"
+owo-colors = "2"
 spin = { version = "0.9", default-features = false, features = ["once", "spin_mutex"] }
 uart_16550 = "0.2"
-x86_64 = "0.13"
+x86_64 = "0.14"
 xmas-elf = "0.7"

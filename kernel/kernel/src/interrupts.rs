@@ -128,12 +128,12 @@ const TIMER_INTERRUPT_ID: u8 = pic::PIC_1_OFFSET;
 
 static IDT: Once<InterruptDescriptorTable> = Once::new();
 
-extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
+extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     log::warn!("Breakpoint in {:#?}", stack_frame);
 }
 
 extern "x86-interrupt" fn page_fault_handler(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     error_code: PageFaultErrorCode,
 ) {
     let address = Cr2::read();
@@ -150,7 +150,7 @@ extern "x86-interrupt" fn page_fault_handler(
 }
 
 extern "x86-interrupt" fn double_fault_handler(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) -> ! {
     log::error!("Double fault in {:#?}", stack_frame);
@@ -159,7 +159,7 @@ extern "x86-interrupt" fn double_fault_handler(
     panic!("double fault");
 }
 
-extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     static COUNT: AtomicUsize = AtomicUsize::new(0);
     let count = COUNT.fetch_add(1, Ordering::Relaxed);
     if count % 1000 == 0 {
