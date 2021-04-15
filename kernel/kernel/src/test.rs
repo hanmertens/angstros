@@ -1,7 +1,20 @@
+use crate::Init;
 use common::{print, println};
 use core::panic::PanicInfo;
 use owo_colors::OwoColorize;
+use spin::Mutex;
 use x86_64::instructions::port::Port;
+
+pub static INIT: Mutex<Option<Init>> = Mutex::new(None);
+
+/// Run tests and exits
+///
+/// Calls `test_main` (and thus `test_runner`) internally.
+pub fn run_tests(init: Init) -> ! {
+    *INIT.lock() = Some(init);
+    crate::test_main();
+    panic!("Should have exited QEMU with appropriate error code...");
+}
 
 /// Exit code to pass to QEMU
 ///

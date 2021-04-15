@@ -23,7 +23,6 @@ use allocator::RegionFrameAllocator;
 use common::{
     boot::{offset, BootInfo, KernelMain},
     elf::Elf,
-    println,
 };
 use core::alloc::Layout;
 use log::LevelFilter;
@@ -65,20 +64,30 @@ fn init(boot_info: &'static BootInfo) -> Init {
     }
 }
 
+// Kernel entry point for tests
+#[cfg(test)]
+#[no_mangle]
+pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
+    let init = init(boot_info);
+    test::run_tests(init);
+}
+
 /// Kernel entry point
+#[cfg(not(test))]
 #[no_mangle]
 pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     let mut init = init(boot_info);
 
-    #[cfg(test)]
-    test_main();
-
     // Single line to prevent race condition with first timer interrupt
-    println!("\n== ÅngstrÖS v{} ==\n", env!("CARGO_PKG_VERSION"));
+    common::println!("\n== ÅngstrÖS v{} ==\n", env!("CARGO_PKG_VERSION"));
 
     log::info!("Boot complete");
-
     threads::spawn_user(&mut init, &USER.info(true).unwrap());
+    log::info!("Going to halt");
+
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 #[cfg(not(test))]
