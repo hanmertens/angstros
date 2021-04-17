@@ -1,6 +1,6 @@
 use anyhow::Result;
-use config::BuildInfo;
-use std::path::Path;
+use clap::Clap;
+use config::{Info, SubCommand};
 
 mod build;
 mod command;
@@ -8,29 +8,23 @@ mod config;
 mod run;
 
 fn main() -> Result<()> {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let base_dir = manifest.ancestors().nth(1).unwrap();
-    let info = BuildInfo::new(base_dir);
-
-    let mut args = std::env::args().skip(1);
-    match args.next().as_deref() {
-        Some("build") => {
-            build::build(&info, false)?;
+    let info = Info::parse();
+    match info.cmd {
+        SubCommand::Build => {
+            build::build(&info)?;
         }
-        Some("debug") => {
-            let info = build::build(&info, false)?;
+        SubCommand::Debug => {
+            let info = build::build(&info)?;
             run::debug(&info)?;
         }
-        Some("run") => {
-            let info = build::build(&info, false)?;
+        SubCommand::Run => {
+            let info = build::build(&info)?;
             run::run(&info)?;
         }
-        Some("test") => {
-            let info = build::build(&info, true)?;
+        SubCommand::Test => {
+            let info = build::build(&info)?;
             run::test(&info)?;
         }
-        Some(s) => println!("Unknown subcommand {}", s),
-        None => println!("Use subcommand build, debug, run or test"),
     }
     Ok(())
 }

@@ -1,6 +1,6 @@
 use crate::{
     command::CommandResultExt,
-    config::{self, BuildInfo, RunConfig, RunInfo},
+    config::{self, Info, RunConfig, RunInfo},
 };
 use anyhow::{anyhow, Result};
 use std::{
@@ -13,19 +13,19 @@ use std::{
 };
 
 pub fn debug(info: &RunInfo) -> Result<()> {
-    let mut qemu = run_qemu(info.build_info, &["-s", "-S"])?;
+    let mut qemu = run_qemu(info.info, &["-s", "-S"])?;
     let gdb = run_gdb(&info.kernel);
     qemu.kill()?;
     gdb
 }
 
 pub fn run(info: &RunInfo) -> Result<()> {
-    run_qemu(info.build_info, &[])?.wait().check_status("QEMU")
+    run_qemu(info.info, &[])?.wait().check_status("QEMU")
 }
 
 pub fn test(info: &RunInfo) -> Result<()> {
     let args = &["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04"];
-    run_qemu(info.build_info, args)?
+    run_qemu(info.info, args)?
         .wait()
         .map(|status| match status.code() {
             // This is the mangled kernel::test::ExitCode::Success
@@ -60,7 +60,7 @@ fn run_gdb(kernel: &Path) -> Result<()> {
         .check_status("GDB")
 }
 
-fn run_qemu(info: &BuildInfo, extra_args: &[&str]) -> Result<Child> {
+fn run_qemu(info: &Info, extra_args: &[&str]) -> Result<Child> {
     println!("Running kernel with QEMU...");
     let config: RunConfig = config::parse(info, "run.toml")?;
     Command::new("qemu-system-x86_64")

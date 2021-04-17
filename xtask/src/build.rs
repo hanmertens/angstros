@@ -1,23 +1,23 @@
 use crate::{
     command::Cargo,
-    config::{BuildInfo, RunInfo},
+    config::{Info, RunInfo, SubCommand},
 };
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-pub fn build(info: &BuildInfo, test: bool) -> Result<RunInfo> {
+pub fn build(info: &Info) -> Result<RunInfo> {
     let user = build_user(info)?;
-    let kernel = build_kernel(info, &user, test)?;
+    let kernel = build_kernel(info, &user)?;
     let efi_stub = build_stub(&kernel)?;
     build_efidir(info, &efi_stub)?;
     Ok(RunInfo {
-        build_info: info,
+        info,
         kernel,
         efi_stub,
     })
 }
 
-fn build_user(info: &BuildInfo) -> Result<PathBuf> {
+fn build_user(info: &Info) -> Result<PathBuf> {
     println!("Building userspace...");
     Cargo::new("build")
         .package("dummy")
@@ -28,8 +28,9 @@ fn build_user(info: &BuildInfo) -> Result<PathBuf> {
         .single_executable()
 }
 
-fn build_kernel(info: &BuildInfo, user: &Path, test: bool) -> Result<PathBuf> {
+fn build_kernel(info: &Info, user: &Path) -> Result<PathBuf> {
     println!("Building kernel...");
+    let test = info.cmd == SubCommand::Test;
     let mut cargo = Cargo::new(if test { "test" } else { "build" });
     if test {
         cargo.arg("--no-run");
@@ -55,7 +56,7 @@ fn build_stub(kernel: &Path) -> Result<PathBuf> {
         .single_executable()
 }
 
-fn build_efidir(info: &BuildInfo, stub: &Path) -> Result<()> {
+fn build_efidir(info: &Info, stub: &Path) -> Result<()> {
     println!("Building EFI system partition...");
     let boot_dir = info.esp_dir().join("EFI/Boot");
     xshell::mkdir_p(&boot_dir)?;
