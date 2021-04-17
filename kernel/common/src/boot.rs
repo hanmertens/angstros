@@ -1,6 +1,5 @@
 //! Code relevant to booting (mostly shared between bootloader and kernel).
 
-use core::slice;
 use uefi::table::{boot::MemoryDescriptor, Runtime, SystemTable};
 
 /// Offset memory mapping information
@@ -23,15 +22,51 @@ pub struct BootInfo {
     /// pointers that assume they are identity mapped, which may not be the case
     /// in the kernel page table provided by the bootloader.
     pub uefi_system_table: SystemTable<Runtime>,
-    pub memory_map_ptr: *const MemoryDescriptor,
-    pub memory_map_len: usize,
+    pub memory_map: MemoryMap,
 }
 
-impl BootInfo {
-    /// Slice containing memory layout when exiting UEFI boot services. The
-    /// reference is valid in the kernel page table, but the virtual addresses
-    /// each memory descriptor refers to are not necessarily up to date.
-    pub fn memory_map(&self) -> &'static [MemoryDescriptor] {
-        unsafe { slice::from_raw_parts(self.memory_map_ptr, self.memory_map_len) }
+/// Description of memory map and iterator over it
+///
+/// Note that this structure itself is an iterator, so you need to clone it if
+/// retaining access to previous elements is desired.
+#[derive(Clone)]
+pub struct MemoryMap {
+    ptr: *const u8,
+    size: usize,
+    len: usize,
+}
+
+// Safe because you need a mutable reference to use the pointer
+unsafe impl Send for MemoryMap {}
+
+impl MemoryMap {
+    /// Create new memory map description
+    ///
+    /// # Safety
+    /// Pointer should point to the first element of the memory map, size the
+    /// distance between elements and len the total number of elements. The
+    /// lifetime of the memory map should be `'static`.
+    pub unsafe fn new(ptr: *const u8, size: usize, len: usize) -> Self {
+        Self { ptr, size, len }
     }
 }
+
+impl Iterator for MemoryMap {
+    type Item = &'static MemoryDescriptor;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.len == 0 {
+            return None;
+        }
+        let current = self.ptr;
+        self.ptr = self.ptr.wrapping_add(self.size);
+        self.len -= 1;
+        Some(unsafe { &*(current as *const MemoryDescriptor) })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
+}
+
+impl ExactSizeIterator for MemoryMap {}

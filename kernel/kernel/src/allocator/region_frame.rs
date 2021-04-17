@@ -1,6 +1,6 @@
 //! A simple frame allocator based on memory regions
 
-use core::slice::Iter;
+use common::boot::MemoryMap;
 use uefi::table::boot::{MemoryDescriptor, MemoryType};
 use x86_64::{
     structures::paging::{frame::PhysFrameRange, FrameAllocator, PageSize, PhysFrame, Size4KiB},
@@ -12,7 +12,7 @@ use x86_64::{
 /// Currently only allocates pages in regions marked conventional by UEFI.
 pub struct RegionFrameAllocator {
     frames: PhysFrameRange,
-    regions: Iter<'static, MemoryDescriptor>,
+    regions: MemoryMap,
 }
 
 unsafe impl FrameAllocator<Size4KiB> for RegionFrameAllocator {
@@ -44,12 +44,12 @@ where
 }
 
 impl RegionFrameAllocator {
-    pub fn new(memory_map: &'static [MemoryDescriptor]) -> Self {
+    pub fn new(memory_map: MemoryMap) -> Self {
         // This is just a dummy value
         let frame_zero = PhysFrame::containing_address(PhysAddr::new(0));
         let mut allocator = Self {
             frames: PhysFrame::range(frame_zero, frame_zero),
-            regions: memory_map.iter(),
+            regions: memory_map,
         };
         // Replace dummy value with the actual first usable frame
         allocator.next_region();

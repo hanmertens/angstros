@@ -6,13 +6,17 @@ mod allocator;
 
 use allocator::BootAllocator;
 use common::{
-    boot::{offset, BootInfo},
+    boot::{offset, BootInfo, MemoryMap},
     elf::Elf,
     println,
 };
 use core::{mem, panic::PanicInfo, slice};
 use log::LevelFilter;
-use uefi::{prelude::*, table::runtime::ResetType, Handle};
+use uefi::{
+    prelude::*,
+    table::{boot::MemoryDescriptor, runtime::ResetType},
+    Handle,
+};
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{Mapper, OffsetPageTable, PageTable, PageTableFlags, PhysFrame, Size4KiB},
@@ -120,22 +124,29 @@ fn efi_main(image_handler: Handle, system_table: SystemTable<Boot>) -> Status {
 
     log::info!("Exiting boot services and performing final setup");
 
-    let (uefi_system_table, mmap_iter) = system_table
+    let (uefi_system_table, mut mmap_iter) = system_table
         .exit_boot_services(image_handler, setup.mmap)?
         .log();
 
-    // Rely on continuous memory map layout to obtain memory descriptors
-    let memory_map_len = mmap_iter.len();
+    // Figure out distance between elements in memory descriptor slice
+    let size = if let (Some(fst), Some(snd)) = (mmap_iter.next(), mmap_iter.next()) {
+        let fst = fst as *const _ as usize;
+        let snd = snd as *const _ as usize;
+        snd - fst
+    } else {
+        mem::size_of::<MemoryDescriptor>()
+    };
+    let len = mmap_iter.len();
     // Drop the mutable borrow of setup.mmap
     mem::drop(mmap_iter);
     // We use wrapping_add because the resulting pointer points to unmapped memory
-    let memory_map_ptr = setup.mmap.as_ptr().wrapping_add(offset::USIZE).cast();
+    let ptr = setup.mmap.as_ptr().wrapping_add(offset::USIZE).cast();
+    let memory_map = unsafe { MemoryMap::new(ptr, size, len) };
 
     unsafe {
         setup.boot_info.write(BootInfo {
             uefi_system_table,
-            memory_map_ptr,
-            memory_map_len,
+            memory_map,
         })
     };
 

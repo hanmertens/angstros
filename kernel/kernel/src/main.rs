@@ -55,7 +55,7 @@ fn init(boot_info: &'static BootInfo) -> Init {
     let page_table_addr = offset::VIRT_ADDR + Cr3::read().0.start_address().as_u64();
     let page_table_ref = unsafe { &mut *page_table_addr.as_mut_ptr::<PageTable>() };
     let mut page_table = unsafe { OffsetPageTable::new(page_table_ref, offset::VIRT_ADDR) };
-    let mut frame_allocator = RegionFrameAllocator::new(&boot_info.memory_map());
+    let mut frame_allocator = RegionFrameAllocator::new(boot_info.memory_map.clone());
     allocator::init(&mut page_table, &mut frame_allocator).unwrap();
     interrupts::init();
     Init {
