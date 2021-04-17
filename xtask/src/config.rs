@@ -20,6 +20,9 @@ pub struct Info {
     /// Path to directory containing configuration files
     #[clap(long, parse(from_os_str))]
     config_dir: Option<PathBuf>,
+    /// Build in release mode with optimizations
+    #[clap(long)]
+    pub release: bool,
     #[clap(subcommand)]
     pub cmd: SubCommand,
 }

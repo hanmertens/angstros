@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 pub fn build(info: &Info) -> Result<RunInfo> {
     let user = build_user(info)?;
     let kernel = build_kernel(info, &user)?;
-    let efi_stub = build_stub(&kernel)?;
+    let efi_stub = build_stub(info, &kernel)?;
     build_efidir(info, &efi_stub)?;
     Ok(RunInfo {
         info,
@@ -20,6 +20,7 @@ pub fn build(info: &Info) -> Result<RunInfo> {
 fn build_user(info: &Info) -> Result<PathBuf> {
     println!("Building userspace...");
     Cargo::new("build")
+        .with_info(info)
         .package("dummy")
         .env("RUST_TARGET_PATH", info.targetspec_dir())
         .target("x86_64-unknown-angstros")
@@ -36,6 +37,7 @@ fn build_kernel(info: &Info, user: &Path) -> Result<PathBuf> {
         cargo.arg("--no-run");
     }
     cargo
+        .with_info(info)
         .package("kernel")
         .env("RUST_TARGET_PATH", info.targetspec_dir())
         .target("x86_64-unknown-angstros")
@@ -45,9 +47,10 @@ fn build_kernel(info: &Info, user: &Path) -> Result<PathBuf> {
         .single_executable()
 }
 
-fn build_stub(kernel: &Path) -> Result<PathBuf> {
+fn build_stub(info: &Info, kernel: &Path) -> Result<PathBuf> {
     println!("Building UEFI stub...");
     Cargo::new("build")
+        .with_info(info)
         .package("uefi_stub")
         .target("x86_64-unknown-uefi")
         .z("build-std=core")

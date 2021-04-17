@@ -1,3 +1,4 @@
+use crate::config::Info;
 use anyhow::{anyhow, Context, Result};
 use serde::Deserialize;
 use std::{
@@ -83,6 +84,13 @@ impl Cargo {
 
     pub fn target<S: AsRef<OsStr>>(&mut self, target: S) -> &mut Self {
         self.arg("--target").arg(target)
+    }
+
+    pub fn with_info(&mut self, info: &Info) -> &mut Self {
+        if info.release {
+            self.arg("--release");
+        }
+        self
     }
 
     pub fn env<K: AsRef<OsStr>, V: AsRef<OsStr>>(&mut self, key: K, val: V) -> &mut Self {
