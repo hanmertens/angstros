@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Clap;
 use serde::{de::DeserializeOwned, Deserialize};
 use std::{
-    fs,
+    fmt, fs,
     path::{Path, PathBuf},
 };
 
@@ -28,12 +28,20 @@ pub struct Info {
 }
 
 impl Info {
+    pub fn test(&self) -> bool {
+        self.cmd == SubCommand::Test
+    }
+
     pub fn targetspec_dir(&self) -> PathBuf {
         self.base_dir.join("data/targetspec")
     }
 
+    pub fn out_dir(&self) -> PathBuf {
+        self.base_dir.join("target/xtask/out")
+    }
+
     pub fn esp_dir(&self) -> PathBuf {
-        self.base_dir.join("target/esp")
+        self.base_dir.join("target/xtask/esp")
     }
 
     pub fn config_dir(&self) -> PathBuf {
@@ -59,6 +67,64 @@ pub struct RunInfo<'a> {
     pub info: &'a Info,
     pub kernel: PathBuf,
     pub efi_stub: PathBuf,
+}
+
+fn camel_case(s: &str) -> String {
+    s.split(' ')
+        .map(|s| {
+            let (a, b) = s.split_at(1);
+            a.to_uppercase() + b
+        })
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BuildConfig {
+    pub user: String,
+    pub uefi_stub: StubConfig,
+    pub kernel: KernelConfig,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct StubConfig {
+    log_level: String,
+}
+
+impl fmt::Display for StubConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "pub const LOG_LEVEL: log::LevelFilter = log::LevelFilter::{};",
+            camel_case(&self.log_level)
+        )?;
+        Ok(())
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct KernelConfig {
+    log_level: String,
+    allocator: String,
+}
+
+impl fmt::Display for KernelConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "pub const LOG_LEVEL: log::LevelFilter = log::LevelFilter::{};",
+            camel_case(&self.log_level)
+        )?;
+        writeln!(
+            f,
+            "pub type Allocator = crate::allocator::{}Allocator;",
+            camel_case(&self.allocator)
+        )?;
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]

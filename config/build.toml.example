@@ -1,0 +1,12 @@
+# Userspace program
+user = "dummy"
+
+[uefi-stub]
+# Log level (trace/debug/info/warn/error/off)
+log-level = "trace"
+
+[kernel]
+# Log level (trace/debug/info/warn/error/off)
+log-level = "trace"
+# Heap allocator (bump/linked list)
+allocator = "linked list"

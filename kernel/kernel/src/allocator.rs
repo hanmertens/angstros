@@ -12,6 +12,7 @@ pub use bump::BumpAllocator;
 pub use linked_list::LinkedListAllocator;
 pub use region_frame::RegionFrameAllocator;
 
+use crate::config::Allocator;
 use x86_64::{
     structures::paging::{
         mapper::MapToError, FrameAllocator, Mapper, Page, PageTableFlags, Size4KiB,
@@ -21,8 +22,6 @@ use x86_64::{
 
 pub const HEAP_START: VirtAddr = VirtAddr::new_truncate(0o1_000_000_0000);
 pub const HEAP_SIZE: u64 = 0o1_000_0000;
-
-type Allocator = LinkedListAllocator;
 
 /// Our global allocator
 #[global_allocator]

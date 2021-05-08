@@ -25,11 +25,14 @@ use common::{
     elf::Elf,
 };
 use core::alloc::Layout;
-use log::LevelFilter;
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{OffsetPageTable, PageTable},
 };
+
+mod config {
+    include!(concat!(env!("XTASK_OUT_DIR"), "/cfg_kernel.rs"));
+}
 
 const USER_SIZE: usize = include_bytes!(env!("USER_PATH")).len();
 const USER_BYTES: [u8; USER_SIZE] = *include_bytes!(env!("USER_PATH"));
@@ -46,12 +49,7 @@ pub struct Init {
 }
 
 fn init(boot_info: &'static BootInfo) -> Init {
-    let level = if cfg!(test) {
-        LevelFilter::Off
-    } else {
-        LevelFilter::Trace
-    };
-    common::init(level).unwrap();
+    common::init(config::LOG_LEVEL).unwrap();
     let page_table_addr = offset::VIRT_ADDR + Cr3::read().0.start_address().as_u64();
     let page_table_ref = unsafe { &mut *page_table_addr.as_mut_ptr::<PageTable>() };
     let mut page_table = unsafe { OffsetPageTable::new(page_table_ref, offset::VIRT_ADDR) };

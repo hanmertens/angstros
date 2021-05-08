@@ -11,7 +11,6 @@ use common::{
     println,
 };
 use core::{mem, panic::PanicInfo, slice};
-use log::LevelFilter;
 use uefi::{
     prelude::*,
     table::{boot::MemoryDescriptor, runtime::ResetType},
@@ -22,6 +21,10 @@ use x86_64::{
     structures::paging::{Mapper, OffsetPageTable, PageTable, PageTableFlags, PhysFrame, Size4KiB},
     PhysAddr, VirtAddr,
 };
+
+mod config {
+    include!(concat!(env!("XTASK_OUT_DIR"), "/cfg_uefi_stub.rs"));
+}
 
 const KERNEL_SIZE: usize = include_bytes!(env!("KERNEL_PATH")).len();
 const KERNEL_BYTES: [u8; KERNEL_SIZE] = *include_bytes!(env!("KERNEL_PATH"));
@@ -43,7 +46,7 @@ struct Setup {
 }
 
 fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
-    common::init(LevelFilter::Trace)?;
+    common::init(config::LOG_LEVEL)?;
 
     // Reset UEFI text and background colors and print newline
     println!("\x1b[0m");

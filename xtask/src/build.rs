@@ -1,12 +1,16 @@
 use crate::{
     command::Cargo,
-    config::{Info, RunInfo, SubCommand},
+    config::{self, BuildConfig, Info, RunInfo},
 };
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub fn build(info: &Info) -> Result<RunInfo> {
-    let user = build_user(info)?;
+    let cfg = handle_config(info)?;
+    let user = build_user(info, &cfg.user)?;
     let kernel = build_kernel(info, &user)?;
     let efi_stub = build_stub(info, &kernel)?;
     build_efidir(info, &efi_stub)?;
@@ -17,11 +21,25 @@ pub fn build(info: &Info) -> Result<RunInfo> {
     })
 }
 
-fn build_user(info: &Info) -> Result<PathBuf> {
+fn handle_config(info: &Info) -> Result<BuildConfig> {
+    let file = if info.test() {
+        "test.toml"
+    } else {
+        "build.toml"
+    };
+    let cfg: BuildConfig = config::parse(info, file)?;
+    let out = info.out_dir();
+    xshell::mkdir_p(&out)?;
+    fs::write(out.clone().join("cfg_kernel.rs"), format!("{}", cfg.kernel))?;
+    fs::write(out.join("cfg_uefi_stub.rs"), format!("{}", cfg.uefi_stub))?;
+    Ok(cfg)
+}
+
+fn build_user(info: &Info, user: &str) -> Result<PathBuf> {
     println!("Building userspace...");
     Cargo::new("build")
         .with_info(info)
-        .package("dummy")
+        .package(user)
         .env("RUST_TARGET_PATH", info.targetspec_dir())
         .target("x86_64-unknown-angstros")
         .z("build-std=core")
@@ -31,9 +49,8 @@ fn build_user(info: &Info) -> Result<PathBuf> {
 
 fn build_kernel(info: &Info, user: &Path) -> Result<PathBuf> {
     println!("Building kernel...");
-    let test = info.cmd == SubCommand::Test;
-    let mut cargo = Cargo::new(if test { "test" } else { "build" });
-    if test {
+    let mut cargo = Cargo::new(if info.test() { "test" } else { "build" });
+    if info.test() {
         cargo.arg("--no-run");
     }
     cargo
@@ -44,6 +61,7 @@ fn build_kernel(info: &Info, user: &Path) -> Result<PathBuf> {
         .z("build-std=core,alloc")
         .z("build-std-features=compiler-builtins-mem")
         .env("USER_PATH", user)
+        .env("XTASK_OUT_DIR", info.out_dir())
         .single_executable()
 }
 
@@ -56,6 +74,7 @@ fn build_stub(info: &Info, kernel: &Path) -> Result<PathBuf> {
         .z("build-std=core")
         .z("build-std-features=compiler-builtins-mem")
         .env("KERNEL_PATH", kernel)
+        .env("XTASK_OUT_DIR", info.out_dir())
         .single_executable()
 }
 
