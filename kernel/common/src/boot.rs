@@ -1,6 +1,9 @@
 //! Code relevant to booting (mostly shared between bootloader and kernel).
 
-use uefi::table::{boot::MemoryDescriptor, Runtime, SystemTable};
+use uefi::{
+    proto::console::gop::{GraphicsOutput, ModeInfo},
+    table::{boot::MemoryDescriptor, Runtime, SystemTable},
+};
 
 /// Offset memory mapping information
 pub mod offset {
@@ -23,6 +26,28 @@ pub struct BootInfo {
     /// in the kernel page table provided by the bootloader.
     pub uefi_system_table: SystemTable<Runtime>,
     pub memory_map: MemoryMap,
+    /// Access to frame buffer of UEFI graphics output protocol
+    pub fb: Option<FrameBuffer>,
+}
+
+/// UEFI frame buffer
+///
+/// This exists to make it possible to get access to the pointer without a
+/// mutable reference, and to bundle the mode information.
+pub struct FrameBuffer {
+    pub ptr: *mut u8,
+    pub size: usize,
+    pub info: ModeInfo,
+}
+
+impl FrameBuffer {
+    pub fn new(gop: &mut GraphicsOutput, offset: usize) -> Self {
+        let info = gop.current_mode_info();
+        let mut fb = gop.frame_buffer();
+        let ptr = fb.as_mut_ptr().wrapping_add(offset);
+        let size = fb.size();
+        Self { ptr, size, info }
+    }
 }
 
 /// Description of memory map and iterator over it

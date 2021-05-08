@@ -6,13 +6,14 @@ mod allocator;
 
 use allocator::BootAllocator;
 use common::{
-    boot::{offset, BootInfo, MemoryMap},
+    boot::{offset, BootInfo, FrameBuffer, MemoryMap},
     elf::Elf,
     println,
 };
 use core::{mem, panic::PanicInfo, slice};
 use uefi::{
     prelude::*,
+    proto::console::gop::GraphicsOutput,
     table::{boot::MemoryDescriptor, runtime::ResetType},
     Handle,
 };
@@ -45,7 +46,9 @@ struct Setup {
     mmap: &'static mut [u8],
 }
 
-fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
+fn setup_boot(
+    system_table: &SystemTable<Boot>,
+) -> Result<(Setup, Option<FrameBuffer>), &'static str> {
     common::init(config::LOG_LEVEL)?;
 
     // Reset UEFI text and background colors and print newline
@@ -59,6 +62,19 @@ fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
     let boot_serv = system_table.boot_services();
     let mut boot_alloc = BootAllocator::new(&boot_serv);
 
+    // Setup graphics protocol and frame buffer
+    let fb = boot_serv
+        .locate_protocol::<GraphicsOutput>()
+        .log_warning()
+        .map_or_else(
+            |e| {
+                log::error!("Failed to locate graphics output: {:?}", e.status());
+                None
+            },
+            |gop| Some(FrameBuffer::new(unsafe { &mut *gop.get() }, offset::USIZE)),
+        );
+
+    // Setup basic mappings for kernel
     let uefi_page_table = {
         let phys_addr = Cr3::read().0.start_address();
         let virt_addr = VirtAddr::new(phys_addr.as_u64());
@@ -106,18 +122,21 @@ fn setup_boot(system_table: &SystemTable<Boot>) -> Result<Setup, &'static str> {
         unsafe { slice::from_raw_parts_mut(mmap_ptr, mmap_size) }
     };
 
-    Ok(Setup {
-        kernel_page_table,
-        stack,
-        entry_point: kernel_info.entry_point(),
-        boot_info,
-        mmap,
-    })
+    Ok((
+        Setup {
+            kernel_page_table,
+            stack,
+            entry_point: kernel_info.entry_point(),
+            boot_info,
+            mmap,
+        },
+        fb,
+    ))
 }
 
 #[entry]
 fn efi_main(image_handler: Handle, system_table: SystemTable<Boot>) -> Status {
-    let setup = match setup_boot(&system_table) {
+    let (setup, fb) = match setup_boot(&system_table) {
         Ok(s) => s,
         Err(s) => {
             log::error!("{}", s);
@@ -150,6 +169,7 @@ fn efi_main(image_handler: Handle, system_table: SystemTable<Boot>) -> Status {
         setup.boot_info.write(BootInfo {
             uefi_system_table,
             memory_map,
+            fb,
         })
     };
 

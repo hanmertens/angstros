@@ -81,6 +81,16 @@ pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     log::info!("Boot complete");
     threads::spawn_user(&mut init, &USER.info(true).unwrap());
+    log::info!("Going to draw on screen");
+    if let Some(fb) = &boot_info.fb {
+        let ptr = fb.ptr as *mut u32;
+        let max = fb.size / 4;
+        let step = 0xffffff / max;
+        for i in 0..max {
+            // Mode is BGR, so color is 0xuu_rr_gg_bb (u = reserved)
+            ptr.wrapping_add(i).write_volatile((i * step) as u32);
+        }
+    }
     log::info!("Going to halt");
 
     loop {

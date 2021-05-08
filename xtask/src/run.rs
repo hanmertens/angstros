@@ -66,7 +66,7 @@ fn run_qemu(info: &Info, extra_args: &[&str]) -> Result<Child> {
     Command::new("qemu-system-x86_64")
         .arg("-nodefaults")
         .args(config.qemu_args)
-        .args(&["-serial", "stdio"])
+        .args(&["-serial", "stdio", "-vga", "std"])
         .arg("-drive")
         .arg(format!(
             "if=pflash,format=raw,file={},readonly",
