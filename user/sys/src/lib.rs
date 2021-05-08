@@ -23,7 +23,6 @@ pub fn syscall(code: SyscallCode, rsi: u64, rdx: u64) -> u64 {
             inout("rsi") rsi => _,
             inout("rdx") rdx => _,
             out("rax") rax,
-            out("rbx") _,
             out("rcx") _,
             out("r8") _,
             out("r9") _,

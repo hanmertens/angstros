@@ -90,15 +90,14 @@ dependencies = [
  "spin",
  "uart_16550",
  "uefi",
- "x86_64 0.14.0",
+ "x86_64",
  "xmas-elf",
 ]
 
 [[package]]
 name = "cpuio"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d531514efb06912141fa65967447de805691b685a7565c87d1765afe34a98aa7"
+source = "git+https://github.com/hanmertens/toyos-rs?branch=patch#660ec67f1f50941e59e911591e97856d9d97cf8c"
 
 [[package]]
 name = "dummy"
@@ -158,7 +157,7 @@ dependencies = [
  "spin",
  "sys",
  "uefi",
- "x86_64 0.14.0",
+ "x86_64",
 ]
 
 [[package]]
@@ -169,9 +168,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.93"
+version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9385f66bf6105b241aa65a61cb923ef20efc665cb9f9bb50ac2f0c4b7f378d41"
+checksum = "18794a8ad5b29321f790b55d93dfba91e125cb1a9edbd4f8e3150acc771c1a5e"
 
 [[package]]
 name = "log"
@@ -303,9 +302,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "syn"
-version = "1.0.69"
+version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48fe99c6bd8b1cc636890bcc071842de909d902c81ac7dab53ba33c421ab8ffb"
+checksum = "a1e8cdbefb79a9a5a65e0db8b47b723ee907b7c7f8496c76a1770b5c310bab82"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -345,12 +344,12 @@ dependencies = [
 
 [[package]]
 name = "uart_16550"
-version = "0.2.12"
+version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d45a3c9181dc9ba7d35d02b3c36d1604155289d935b7946510fb3d2f4b976d9"
+checksum = "e09a33949dbbdeaa40f59d7ede389bba927c90b7ad411b91bb9617be3694267b"
 dependencies = [
  "bitflags",
- "x86_64 0.13.6",
+ "x86_64",
 ]
 
 [[package]]
@@ -392,7 +391,7 @@ dependencies = [
  "common",
  "log",
  "uefi",
- "x86_64 0.14.0",
+ "x86_64",
  "xmas-elf",
 ]
 
@@ -410,9 +409,9 @@ checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
 
 [[package]]
 name = "unicode-xid"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
+checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
 
 [[package]]
 name = "vec_map"
@@ -465,19 +464,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "x86_64"
-version = "0.13.6"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "021b49a4cb0a0d9490265cc169ca816014cbf61d3f3b75424815912977b81871"
-dependencies = [
- "bit_field 0.9.0",
- "bitflags",
-]
-
-[[package]]
-name = "x86_64"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c48c878623ca5318ce0d3fde56541e05c973e1683cfc19d5384db516999569dc"
+checksum = "e9ce25c8b91769cf3522618360482d4fe8e2abf7056958ae88b1f039d6cf6bc2"
 dependencies = [
  "bit_field 0.9.0",
  "bitflags",
@@ -495,18 +484,18 @@ dependencies = [
 
 [[package]]
 name = "xshell"
-version = "0.1.9"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f18102278453c8f70ea5c514ac78cb4c73a0ef72a8273d17094b52f9584c0c1"
+checksum = "42a0645d510e1b6c136c2379418f9e0b8faf6bde19b67328229fc8fb4ebccc69"
 dependencies = [
  "xshell-macros",
 ]
 
 [[package]]
 name = "xshell-macros"
-version = "0.1.9"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6093c460064572007f885facc70bb0ca5e40a83ea7ff8b16c1abbee56fd2e767"
+checksum = "a489d0bff8163f205ba510f167c31c03a135ea55c4ff916a9c66b282a6987324"
 
 [[package]]
 name = "xtask"

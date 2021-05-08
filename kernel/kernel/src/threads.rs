@@ -54,8 +54,7 @@ unsafe fn syscall_loop(entry_point: u64, stack_end: u64) {
             // rflags is read from r11
             inlateout("r11") 0x0202 => _,
             // The rest is not preserved
-            inlateout("rax") rax => _,
-            lateout("rbx") rsp,
+            inlateout("rax") rax => rsp,
             lateout("rdx") rdx,
             lateout("rsi") rsi,
             lateout("rdi") code,
@@ -94,11 +93,10 @@ unsafe fn syscall_loop(entry_point: u64, stack_end: u64) {
 
 unsafe extern "C" fn syscall_handler() {
     asm!(
-        "pop rax; mov rbx, rsp; mov rsp, [{}]; jmp return_syscall",
+        "pop rax; mov rax, rsp; mov rsp, [{}]; jmp return_syscall",
         in(reg) &STACK,
         // The pop is just to realign the stack since this function isn't naked
         out("rax") _,
-        out("rbx") _,
         out("rcx") _,
         out("rdx") _,
         out("rsi") _,
