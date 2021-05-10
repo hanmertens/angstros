@@ -30,6 +30,9 @@ pub struct BootInfo {
     pub fb: Option<FrameBuffer>,
 }
 
+unsafe impl Send for BootInfo {}
+unsafe impl Sync for BootInfo {}
+
 /// UEFI frame buffer
 ///
 /// This exists to make it possible to get access to the pointer without a

@@ -44,6 +44,7 @@ static USER: Elf<USER_SIZE> = Elf::new(USER_BYTES);
 const _: KernelMain = _start;
 
 pub struct Init {
+    boot_info: &'static BootInfo,
     page_table: OffsetPageTable<'static>,
     frame_allocator: RegionFrameAllocator,
 }
@@ -57,6 +58,7 @@ fn init(boot_info: &'static BootInfo) -> Init {
     allocator::init(&mut page_table, &mut frame_allocator).unwrap();
     interrupts::init();
     Init {
+        boot_info,
         page_table,
         frame_allocator,
     }
@@ -81,16 +83,6 @@ pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     log::info!("Boot complete");
     threads::spawn_user(&mut init, &USER.info(true).unwrap());
-    log::info!("Going to draw on screen");
-    if let Some(fb) = &boot_info.fb {
-        let ptr = fb.ptr as *mut u32;
-        let max = fb.size / 4;
-        let step = 0xffffff / max;
-        for i in 0..max {
-            // Mode is BGR, so color is 0xuu_rr_gg_bb (u = reserved)
-            ptr.wrapping_add(i).write_volatile((i * step) as u32);
-        }
-    }
     log::info!("Going to halt");
 
     loop {

@@ -1,0 +1,9 @@
+[package]
+name = "screen"
+version = "0.1.0"
+authors = ["Han Mertens <hanmertens@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+os = { path = "../os" }
+volatile = "0.4"
