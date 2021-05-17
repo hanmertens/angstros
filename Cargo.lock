@@ -95,11 +95,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpuio"
-version = "0.3.0"
-source = "git+https://github.com/hanmertens/toyos-rs?branch=patch#660ec67f1f50941e59e911591e97856d9d97cf8c"
-
-[[package]]
 name = "dummy"
 version = "0.1.0"
 dependencies = [
@@ -153,7 +148,7 @@ dependencies = [
  "common",
  "log",
  "owo-colors",
- "pic8259_simple",
+ "pic8259",
  "spin",
  "sys",
  "uefi",
@@ -201,12 +196,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2fe43bf372b08cc9ccee5144715db59c79ab00168bbe4cf0d274dc0d5f64d7f"
 
 [[package]]
-name = "pic8259_simple"
-version = "0.2.0"
+name = "pic8259"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af2a5497fb8e59bf8015f67b7dff238d75ef445e03f23edac24ac3a8f09be952"
+checksum = "08cc920d83ee33c0f9b73aa441e75468bf2d10c959a3eb6260cf720b05ac91a1"
 dependencies = [
- "cpuio",
+ "x86_64",
 ]
 
 [[package]]
@@ -472,9 +467,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "x86_64"
-version = "0.14.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9ce25c8b91769cf3522618360482d4fe8e2abf7056958ae88b1f039d6cf6bc2"
+checksum = "13f09cffc08ee86bf5e4d147f107a43de0885c53ffad799b39f4ad203fb2a27d"
 dependencies = [
  "bit_field 0.9.0",
  "bitflags",

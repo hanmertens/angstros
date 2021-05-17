@@ -10,6 +10,6 @@ log = "0.4"
 owo-colors = "2"
 spin = { version = "0.9", default-features = false, features = ["once"] }
 sys = { path = "../../user/sys" }
-pic8259_simple = "0.2"
+pic8259 = "0.10"
 uefi = "0.8"
 x86_64 = "0.14"

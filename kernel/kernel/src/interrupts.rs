@@ -102,9 +102,8 @@ mod gdt {
 }
 
 mod pic {
-    use pic8259_simple::ChainedPics;
+    use pic8259::ChainedPics;
     use spin::Mutex;
-    use x86_64::instructions::port::Port;
 
     pub const PIC_1_OFFSET: u8 = 0x20;
     pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -113,12 +112,10 @@ mod pic {
         Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
     pub fn init() {
-        // Lock PICS before (manually) writing to ports
         let mut pics = PICS.lock();
         unsafe {
             // UEFI masks all interrupt, so unmask at least the ones we want
-            Port::<u8>::new(0x21).write(0b10111000);
-            Port::<u8>::new(0xa1).write(0b10001110);
+            pics.write_masks(0b10111000, 0b10001110);
             pics.initialize();
         }
     }

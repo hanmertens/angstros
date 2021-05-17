@@ -1,5 +1,2 @@
 [workspace]
 members = ["kernel/*", "user/*", "xtask"]
-
-[patch.crates-io]
-cpuio = { git = "https://github.com/hanmertens/toyos-rs", branch = "patch" }
