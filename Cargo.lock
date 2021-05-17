@@ -262,18 +262,18 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.125"
+version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "558dc50e1a5a5fa7112ca2ce4effcb321b0300c0d4ccf0776a9f60cd89031171"
+checksum = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.125"
+version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b093b7a2bb58203b5da3056c05b4ec1fed827dcfdb37347a8841695263b3d06d"
+checksum = "963a7dbc9895aeac7ac90e74f34a5d5261828f79df35cbed41e10189d3804d43"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -347,9 +347,9 @@ dependencies = [
 
 [[package]]
 name = "uart_16550"
-version = "0.2.13"
+version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e09a33949dbbdeaa40f59d7ede389bba927c90b7ad411b91bb9617be3694267b"
+checksum = "503a6c0e6d82daa87985e662d120c0176b09587c92a68db22781b28ae95405dd"
 dependencies = [
  "bitflags",
  "x86_64",
@@ -366,9 +366,9 @@ dependencies = [
 
 [[package]]
 name = "uefi"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41f86f972322768901e872186fc8b7df009ca4ce3e945fc337614cdca0c526d4"
+checksum = "e008be83f40df3c5ebf67bacdbc85ee41c2c1185d27ceb4e91f7a6744a0afc1d"
 dependencies = [
  "bitflags",
  "log",
@@ -487,18 +487,18 @@ dependencies = [
 
 [[package]]
 name = "xshell"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42a0645d510e1b6c136c2379418f9e0b8faf6bde19b67328229fc8fb4ebccc69"
+checksum = "4e3f93d5e767c73e5b2604549613ce051d3d2880ec5ae7f346900f6ee4eec6bf"
 dependencies = [
  "xshell-macros",
 ]
 
 [[package]]
 name = "xshell-macros"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a489d0bff8163f205ba510f167c31c03a135ea55c4ff916a9c66b282a6987324"
+checksum = "58d215d6837186f9f3d0d2d835545c7bf19142296e9184279ad240f90101af30"
 
 [[package]]
 name = "xtask"
