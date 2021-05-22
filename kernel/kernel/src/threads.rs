@@ -4,7 +4,6 @@ use core::{slice, str};
 use sys::{FrameBuffer, SyscallCode};
 use uefi::proto::console::gop;
 use x86_64::{
-    instructions,
     registers::model_specific::LStar,
     structures::paging::{FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB},
     PhysAddr, VirtAddr,
@@ -34,7 +33,6 @@ pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) {
     log::info!("Switching to userspace");
     syscall_loop(init, elf.entry_point(), stack_start + stack_length * 0x1000);
     log::info!("Back in kernelspace");
-    instructions::interrupts::enable();
 }
 
 /// Loop while handling syscalls
@@ -53,7 +51,7 @@ unsafe fn syscall_loop(init: &mut Init, entry_point: u64, stack_end: u64) {
             // rip is read from rcx
             inout("rcx") rip,
             // rflags is read from r11
-            inlateout("r11") 0x0202 => _,
+            inlateout("r11") 0x0212 => _,
             // The rest is not preserved
             inlateout("rax") rax => rsp,
             lateout("rdx") rdx,
