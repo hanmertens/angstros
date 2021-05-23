@@ -7,10 +7,12 @@
 mod bump;
 mod linked_list;
 mod region_frame;
+mod user_frame;
 
 pub use bump::BumpAllocator;
 pub use linked_list::LinkedListAllocator;
 pub use region_frame::RegionFrameAllocator;
+pub use user_frame::UserFrameAllocator;
 
 use crate::config::Allocator;
 use x86_64::{

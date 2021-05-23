@@ -5,7 +5,10 @@ use sys::{FrameBuffer, SyscallCode};
 use uefi::proto::console::gop;
 use x86_64::{
     registers::model_specific::LStar,
-    structures::paging::{FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB},
+    structures::paging::{
+        FrameAllocator, FrameDeallocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB,
+        Translate,
+    },
     PhysAddr, VirtAddr,
 };
 
@@ -19,8 +22,9 @@ pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) {
         .unwrap();
     let stack_start = 0x2000;
     let stack_length = 1;
-    for i in 0..stack_length {
-        let page = Page::containing_address(VirtAddr::new(stack_start)) + i;
+    let stack_start_page = Page::containing_address(VirtAddr::new(stack_start));
+    let stack_pages = Page::range(stack_start_page, stack_start_page + stack_length);
+    for page in stack_pages {
         let frame = init.frame_allocator.allocate_frame().unwrap();
         let flags =
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
@@ -33,6 +37,13 @@ pub unsafe fn spawn_user(init: &mut Init, elf: &ElfInfo) {
     log::info!("Switching to userspace");
     syscall_loop(init, elf.entry_point(), stack_start + stack_length * 0x1000);
     log::info!("Back in kernelspace");
+    for page in stack_pages {
+        let (frame, flush) = init.page_table.unmap(page).unwrap();
+        flush.flush();
+        init.frame_allocator.deallocate_frame(frame);
+    }
+    elf.remove_mappings(&mut init.page_table, &mut init.frame_allocator)
+        .unwrap();
 }
 
 /// Loop while handling syscalls
@@ -93,21 +104,23 @@ unsafe fn syscall_loop(init: &mut Init, entry_point: u64, stack_end: u64) {
                         let start_frame = PhysFrame::<Size4KiB>::containing_address(start);
                         let virt_start =
                             VirtAddr::new(0x7000000 + (start - start_frame.start_address()));
-                        for (i, frame) in PhysFrame::range_inclusive(
-                            start_frame,
-                            PhysFrame::containing_address(start + (fb.size - 1)),
-                        )
-                        .enumerate()
-                        {
-                            let page = Page::containing_address(virt_start) + i as u64;
-                            let flags = PageTableFlags::PRESENT
-                                | PageTableFlags::WRITABLE
-                                | PageTableFlags::USER_ACCESSIBLE;
-                            log::trace!("Mapping {:?} to {:?}", page, frame);
-                            init.page_table
-                                .map_to(page, frame, flags, &mut init.frame_allocator)
-                                .unwrap()
-                                .flush();
+                        if init.page_table.translate_addr(virt_start).is_none() {
+                            for (i, frame) in PhysFrame::range_inclusive(
+                                start_frame,
+                                PhysFrame::containing_address(start + (fb.size - 1)),
+                            )
+                            .enumerate()
+                            {
+                                let page = Page::containing_address(virt_start) + i as u64;
+                                let flags = PageTableFlags::PRESENT
+                                    | PageTableFlags::WRITABLE
+                                    | PageTableFlags::USER_ACCESSIBLE;
+                                log::trace!("Mapping {:?} to {:?}", page, frame);
+                                init.page_table
+                                    .map_to(page, frame, flags, &mut init.frame_allocator)
+                                    .unwrap()
+                                    .flush();
+                            }
                         }
                         (rsi as *mut FrameBuffer).write(FrameBuffer {
                             ptr: virt_start.as_mut_ptr(),
@@ -152,6 +165,8 @@ mod tests {
     fn dummy() {
         let mut guard = crate::test::INIT.lock();
         let init = guard.as_mut().unwrap();
-        unsafe { spawn_user(init, &crate::USER.info(true).unwrap()) };
+        for _ in 0..10 {
+            unsafe { spawn_user(init, &crate::USER.info(true).unwrap()) };
+        }
     }
 }

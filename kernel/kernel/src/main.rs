@@ -19,7 +19,7 @@ mod interrupts;
 mod test;
 mod threads;
 
-use allocator::RegionFrameAllocator;
+use allocator::{RegionFrameAllocator, UserFrameAllocator};
 use common::{
     boot::{offset, BootInfo, KernelMain},
     elf::Elf,
@@ -46,7 +46,7 @@ const _: KernelMain = _start;
 pub struct Init {
     boot_info: &'static BootInfo,
     page_table: OffsetPageTable<'static>,
-    frame_allocator: RegionFrameAllocator,
+    frame_allocator: UserFrameAllocator<RegionFrameAllocator>,
 }
 
 fn init(boot_info: &'static BootInfo) -> Init {
@@ -57,6 +57,7 @@ fn init(boot_info: &'static BootInfo) -> Init {
     let mut frame_allocator = RegionFrameAllocator::new(boot_info.memory_map.clone());
     allocator::init(&mut page_table, &mut frame_allocator).unwrap();
     interrupts::init();
+    let frame_allocator = UserFrameAllocator::new(frame_allocator);
     Init {
         boot_info,
         page_table,
@@ -82,6 +83,8 @@ pub unsafe extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     common::println!("\n== ÅngstrÖS v{} ==\n", env!("CARGO_PKG_VERSION"));
 
     log::info!("Boot complete");
+    threads::spawn_user(&mut init, &USER.info(true).unwrap());
+    log::info!("Rerunning user process");
     threads::spawn_user(&mut init, &USER.info(true).unwrap());
     log::info!("Going to halt");
 

@@ -4,7 +4,8 @@ use crate::boot::offset;
 use core::ptr;
 use x86_64::{
     structures::paging::{
-        FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB, Translate,
+        FrameAllocator, FrameDeallocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB,
+        Translate,
     },
     PhysAddr, VirtAddr,
 };
@@ -238,6 +239,82 @@ impl<'a> ElfInfo<'a> {
                     return Err("Unimplemented relocation type encountered");
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Remove page table mappings
+    ///
+    /// Does not remove non-level-4 page table entries.
+    pub fn remove_mappings<M, A>(&self, map: &mut M, all: &mut A) -> Result<(), &'static str>
+    where
+        M: Mapper<Size4KiB> + Translate,
+        A: FrameDeallocator<Size4KiB>,
+    {
+        log::info!("Removing up ELF mappings...");
+        for header in self.elf.program_iter() {
+            match header.get_type()? {
+                Type::Load => {
+                    self.unload_segment(&header, map, all)?;
+                }
+                ty => {
+                    log::debug!("Skipping section of type {:?}", ty);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Unload loadable segment of the executable as requested
+    fn unload_segment<M, A>(
+        &self,
+        header: &ProgramHeader,
+        map: &mut M,
+        all: &mut A,
+    ) -> Result<(), &'static str>
+    where
+        M: Mapper<Size4KiB> + Translate,
+        A: FrameDeallocator<Size4KiB>,
+    {
+        let virt_len = header.mem_size();
+        let phys_len = header.file_size();
+        if virt_len == 0 {
+            return Ok(());
+        }
+        let virt_start = VirtAddr::new(header.virtual_addr()) + self.offset();
+        let virt_end = virt_start + virt_len - 1u64;
+        log::debug!("Unmapping {:?}..{:?}", virt_start, virt_end,);
+        let mut page_range = Page::range_inclusive(
+            Page::containing_address(virt_start),
+            Page::containing_address(virt_end),
+        );
+        if virt_len > phys_len {
+            // Instead of mapping to the last ELF frame, map to fresh frame
+            // Other extraneous virtual memory is also backed by fresh frames
+            let new_start = Page::containing_address(virt_start + phys_len - 1u64);
+            let old_end = page_range.end;
+            page_range.end = new_start - 1;
+            let new_range = Page::range_inclusive(new_start, old_end);
+            for page in new_range {
+                log::trace!("Unmapping {:?}", page);
+                let (frame, flush) = map.unmap(page).map_err(|e| {
+                    log::error!("{:?}", e);
+                    "Mapping error"
+                })?;
+                flush.flush();
+                unsafe { all.deallocate_frame(frame) };
+            }
+        }
+        // Map directly to ELF as loaded in static variable
+        for page in page_range {
+            log::trace!("Unmapping {:?}", page);
+            map.unmap(page)
+                .map_err(|e| {
+                    log::error!("{:?}", e);
+                    "Mapping error"
+                })?
+                .1
+                .flush();
         }
         Ok(())
     }
